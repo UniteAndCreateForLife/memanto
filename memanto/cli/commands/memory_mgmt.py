@@ -312,40 +312,44 @@ def memory_sync(
         )
     )
 
-    with console.status(f"[{PRIMARY}]Syncing memories...", spinner="dots"):
+    with console.status(f"[{PRIMARY}]Syncing dynamic memories...", spinner="dots"):
         try:
-            result = client.sync_memory_to_project(
+            from memanto.cli.connect.updater import inject_dynamic_memories
+            
+            memories_result = client.recall(
                 agent_id=agent_id,
-                project_dir=project_dir,
-                limit_per_type=limit,
+                query="*",
+                type=["instruction", "preference", "goal"],
+                min_confidence=0.8,
+                limit=limit
             )
+            
+            formatted_bullets = []
+            for mem in memories_result.get("memories", []):
+                mem_type = mem.get("type", "fact").upper()
+                content = mem.get("content", "").strip()
+                formatted_bullets.append(f"- [{mem_type}] {content}")
+            
+            formatted_text = "\n".join(formatted_bullets)
+            
+            if formatted_text:
+                injection_messages = inject_dynamic_memories(project_dir, formatted_text)
+                total = len(memories_result.get("memories", []))
+            else:
+                injection_messages = []
+                total = 0
+                
         except Exception as e:
-            _error(f"Failed to sync memories: {e}")
+            _error(f"Failed to sync dynamic memories: {e}")
 
     elapsed = time.perf_counter() - start
 
-    total = result.get("total_memories", 0)
-    source = result.get("source", "unknown")
-    out_path = result.get("output_path", "unknown")
-
-    if source == "stale-cache":
-        source_label = "stale cache (backend unreachable)"
-    else:
-        source_label = "fresh export"
-
     if total == 0:
-        console.print("\n[yellow]No memories found for this agent.[/yellow]")
-        console.print(f"[dim]Empty memory.md written to: {out_path}[/dim]")
+        console.print("\n[yellow]No high-confidence dynamic memories found for this agent.[/yellow]")
     else:
         console.print(f"\n[green]OK Synced {total} memories successfully![/green]")
-        console.print(f"[dim]Source: {source_label}[/dim]")
+        for msg in injection_messages:
+            console.print(f"[dim]* {msg}[/dim]")
 
-    if source == "stale-cache":
-        console.print(
-            "[yellow]Warning: backend was unreachable; reused the previous "
-            "export. Memories may be out of date.[/yellow]"
-        )
-
-    console.print(f"[dim]Output: {out_path}[/dim]")
     _check_template_updates(project_dir)
     console.print(f"[dim]Completed in {elapsed:.2f}s[/dim]")

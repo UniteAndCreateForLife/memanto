@@ -171,3 +171,37 @@ def update_all_agents(
         )
 
     return messages
+
+
+def inject_dynamic_memories(project_dir: str, content: str) -> list[str]:
+    import re
+    from pathlib import Path
+    from memanto.cli.connect.agent_registry import list_agents
+    from memanto.cli.connect.templates import MEMANTO_DYNAMIC_SENTINEL, MEMANTO_DYNAMIC_SENTINEL_END
+    
+    project_path = Path(project_dir).expanduser().resolve()
+    messages = []
+    
+    pattern = re.compile(
+        rf'({re.escape(MEMANTO_DYNAMIC_SENTINEL)}).*?({re.escape(MEMANTO_DYNAMIC_SENTINEL_END)})', 
+        flags=re.DOTALL
+    )
+
+    for agent in list_agents():
+        paths_to_check = [
+            agent.resolve_instruction_file(project_path, False),
+            agent.resolve_instruction_file(project_path, True),
+            agent.resolve_skill_local(project_path) / 'SKILL.md' if agent.resolve_skill_local(project_path) else None,
+            agent.resolve_skill_global() / 'SKILL.md' if agent.resolve_skill_global() else None,
+        ]
+        
+        for p in paths_to_check:
+            if p and p.exists():
+                text = p.read_text(encoding='utf-8')
+                if MEMANTO_DYNAMIC_SENTINEL in text:
+                    new_text = pattern.sub(rf'\1\n{content}\n\2', text)
+                    if new_text != text:
+                        p.write_text(new_text, encoding='utf-8')
+                        messages.append(f'Injected memories into {p.name} ({agent.name})')
+
+    return messages
