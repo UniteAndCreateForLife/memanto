@@ -151,6 +151,10 @@ def test_remove_claude_code_preserves_unrelated_hooks_and_permissions(
     permissions = read_json(permissions_path)
     assert settings["theme"] == "dark"
     assert settings["hooks"]["SessionStart"] == [
+        {
+            "matcher": "startup",
+            "hooks": [{"type": "command", "command": "echo keep"}],
+        },
         {"matcher": "other", "hooks": [{"command": "echo other"}]},
     ]
     assert permissions == {

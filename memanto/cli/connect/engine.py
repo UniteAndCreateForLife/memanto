@@ -7,6 +7,7 @@ Handles instruction injection, skill deployment, and hook configuration.
 
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -449,6 +450,28 @@ def _is_memanto_hook(hook_group: dict) -> bool:
     return False
 
 
+def _strip_managed(entries: list[Any]) -> tuple[list[Any], int]:
+    """Remove Memanto commands while preserving foreign commands in each group."""
+    kept: list[Any] = []
+    removed = 0
+    for entry in entries:
+        hooks = entry.get("hooks") if isinstance(entry, dict) else None
+        if not isinstance(hooks, list):
+            if _is_memanto_hook(entry):
+                removed += 1
+            else:
+                kept.append(entry)
+            continue
+
+        foreign = [hook for hook in hooks if not _is_memanto_hook(hook)]
+        removed += len(hooks) - len(foreign)
+        if len(foreign) == len(hooks):
+            kept.append(entry)
+        elif foreign:
+            kept.append({**entry, "hooks": foreign})
+    return kept, removed
+
+
 def _install_hooks(agent: AgentDef, project_path: Path, is_global: bool) -> str | None:
     """Configure auto-sync hooks for agents that support them."""
     if not agent.hook_config:
@@ -482,17 +505,14 @@ def _install_hooks(agent: AgentDef, project_path: Path, is_global: bool) -> str 
     asset_file_path = assets_hooks_dir / asset_file_name
 
     if assets_hooks_dir.exists() and asset_file_path.exists():
-        target_hooks_dir = config_dir / "hooks"
-        target_hooks_dir.mkdir(parents=True, exist_ok=True)
-
-        # Copy python scripts
-        import shutil
-
-        for py_file in assets_hooks_dir.glob("*.py"):
-            shutil.copy2(py_file, target_hooks_dir / py_file.name)
-
         # Parse and inject JSON
         raw_json = asset_file_path.read_text(encoding="utf-8")
+        raw_json = raw_json.replace(
+            "${SYS_EXECUTABLE}", sys.executable.replace("\\", "/")
+        )
+        raw_json = raw_json.replace(
+            "${HOOKS_DIR}", str(assets_hooks_dir.absolute()).replace("\\", "/")
+        )
         raw_json = raw_json.replace(
             "${CLAUDE_PLUGIN_ROOT}", str(config_dir).replace("\\", "/")
         )
@@ -507,30 +527,19 @@ def _install_hooks(agent: AgentDef, project_path: Path, is_global: bool) -> str 
         asset_hooks = asset_hooks_data.get("hooks", {})
 
         for event_name, event_payloads in asset_hooks.items():
-            target_event = hooks_section.setdefault(event_name, [])
-            if not isinstance(target_event, list):
-                continue
-
-            for payload in event_payloads:
-                if not any(_is_memanto_hook(existing) for existing in target_event):
-                    target_event.append(payload)
-                    changed = True
+            existing = hooks_section.get(event_name, [])
+            if not isinstance(existing, list):
+                existing = []
+            kept, _ = _strip_managed(existing)
+            hooks_section[event_name] = kept + event_payloads
+            changed = True
 
         if changed:
             settings_path.write_text(
                 json.dumps(settings, indent=2) + "\n", encoding="utf-8"
             )
-            return "Installed Memanto hooks and scripts"
+            return "Installed Memanto hooks"
         return None
-
-    # 2. Fallback to hardcoded agent payload
-    session_start = hooks_section.setdefault("SessionStart", [])
-    if not any(_is_memanto_hook(group) for group in session_start):
-        session_start.append(agent.hook_config.hook_payload)
-        settings_path.write_text(
-            json.dumps(settings, indent=2) + "\n", encoding="utf-8"
-        )
-        return "Added SessionStart hook"
 
     return None
 
@@ -564,16 +573,16 @@ def _remove_hooks(agent: AgentDef, project_path: Path, is_global: bool) -> str |
 
     # 1. Remove from all hook events
     empty_events = []
-    for event_name, event_payloads in hooks_section.items():
+    for event_name, event_payloads in list(hooks_section.items()):
         if not isinstance(event_payloads, list):
             continue
 
-        remaining = [group for group in event_payloads if not _is_memanto_hook(group)]
-        if len(remaining) != len(event_payloads):
-            hooks_section[event_name] = remaining
+        kept, removed = _strip_managed(event_payloads)
+        if removed > 0:
+            hooks_section[event_name] = kept
             changed = True
 
-        if not remaining:
+        if not kept:
             empty_events.append(event_name)
 
     for event_name in empty_events:
@@ -582,27 +591,9 @@ def _remove_hooks(agent: AgentDef, project_path: Path, is_global: bool) -> str |
     if not hooks_section:
         settings.pop("hooks", None)
 
-    # 2. Remove copied script files
-    target_hooks_dir = config_dir / "hooks"
-    if target_hooks_dir.exists():
-        for f in ["notify.py", "session_start.py"]:
-            script_path = target_hooks_dir / f
-            if script_path.exists():
-                try:
-                    script_path.unlink()
-                except Exception:
-                    # Ignore errors if script file cannot be unlinked
-                    pass
-        # Try to remove dir if empty
-        try:
-            target_hooks_dir.rmdir()
-        except Exception:
-            # Ignore errors if directory is not empty or non-deletable
-            pass
-
     if changed:
         _write_or_remove_json(settings_path, settings)
-        return "Removed Memanto hooks and scripts"
+        return "Removed Memanto hooks"
 
     return None
 
