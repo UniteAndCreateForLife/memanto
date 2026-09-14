@@ -212,16 +212,26 @@ def memory_sync(
     agent_id: str | None = typer.Option(
         None, "--agent", "-a", help="Agent identifier (defaults to active agent)"
     ),
+    connection: str | None = typer.Option(
+        None,
+        "--connection",
+        help="Connected integration to update when the caller cannot be detected",
+    ),
+    scope: str | None = typer.Option(
+        None,
+        "--scope",
+        help="Connection scope to update: local or global",
+    ),
     limit: int = typer.Option(
-        25,
+        10,
         "--limit",
         "-n",
-        help="Maximum memories per type in the export (default 25)",
+        help="Maximum memories to inject dynamically (default 10). For OKF, max per type.",
     ),
     okf: bool = typer.Option(
         False,
         "--okf",
-        help="Sync an OKF (Open Knowledge Format) bundle (<project>/okf) instead of MEMORY.md",
+        help="Sync an OKF (Open Knowledge Format) bundle to <project>/okf",
     ),
     split: str = typer.Option(
         "auto",
@@ -229,10 +239,13 @@ def memory_sync(
         help="OKF layout: auto | file | type (only used with --okf)",
     ),
 ):
-    """Sync agent memories to a project directory's MEMORY.md.
+    """Sync agent memories directly into your project's agent instructions.
 
-    Always performs a fresh export before syncing to ensure the latest
-    memories are captured in the project's MEMORY.md file. Pass --okf to instead
+    Fetches the highest relevance dynamic memories based on global project standards
+    and user preferences, and injects them into agent instructions via sentinels.
+    The invoking agent determines the connection automatically; manual invocations
+    can provide --connection and --scope when the target is ambiguous.
+    Pass --okf to instead
     sync an OKF bundle into ``<project>/okf``.
 
     Examples:
@@ -318,9 +331,10 @@ def memory_sync(
             
             memories_result = client.recall(
                 agent_id=agent_id,
-                query="*",
+                query="Global project standards, architectural rules, agent workflows, and core user preferences",
                 type=["instruction", "preference", "goal"],
                 min_confidence=0.8,
+                min_similarity=0.15,
                 limit=limit
             )
             
@@ -333,21 +347,26 @@ def memory_sync(
             formatted_text = "\n".join(formatted_bullets)
             
             if formatted_text:
-                injection_messages = inject_dynamic_memories(project_dir, formatted_text)
-                total = len(memories_result.get("memories", []))
+                injection_messages = inject_dynamic_memories(
+                    project_dir,
+                    formatted_text,
+                    connection=connection,
+                    scope=scope,
+                )
+                injection_total = len(memories_result.get("memories", []))
             else:
                 injection_messages = []
-                total = 0
+                injection_total = 0
                 
         except Exception as e:
             _error(f"Failed to sync dynamic memories: {e}")
 
     elapsed = time.perf_counter() - start
 
-    if total == 0:
-        console.print("\n[yellow]No high-confidence dynamic memories found for this agent.[/yellow]")
+    if injection_total == 0:
+        console.print("\n[yellow]No high-confidence, highly relevant dynamic memories found for this agent.[/yellow]")
     else:
-        console.print(f"\n[green]OK Synced {total} memories successfully![/green]")
+        console.print(f"\n[green]OK Injected {injection_total} dynamic memories![/green]")
         for msg in injection_messages:
             console.print(f"[dim]* {msg}[/dim]")
 
