@@ -173,35 +173,96 @@ def update_all_agents(
     return messages
 
 
-def inject_dynamic_memories(project_dir: str, content: str) -> list[str]:
+def inject_dynamic_memories(
+    project_dir: str,
+    content: str,
+    connection: str | None = None,
+    scope: str | None = None,
+) -> list[str]:
     import re
-    from pathlib import Path
-    from memanto.cli.connect.agent_registry import list_agents
-    from memanto.cli.connect.templates import MEMANTO_DYNAMIC_SENTINEL, MEMANTO_DYNAMIC_SENTINEL_END
-    
+
+    from memanto.app.utils.client_identity import detect_client
+    from memanto.cli.config.manager import ConfigManager
+    from memanto.cli.connect.agent_registry import get_agent
+    from memanto.cli.connect.templates import (
+        MEMANTO_DYNAMIC_SENTINEL,
+        MEMANTO_DYNAMIC_SENTINEL_END,
+    )
+
     project_path = Path(project_dir).expanduser().resolve()
     messages = []
-    
+
     pattern = re.compile(
-        rf'({re.escape(MEMANTO_DYNAMIC_SENTINEL)}).*?({re.escape(MEMANTO_DYNAMIC_SENTINEL_END)})', 
+        rf'({re.escape(MEMANTO_DYNAMIC_SENTINEL)}).*?({re.escape(MEMANTO_DYNAMIC_SENTINEL_END)})',
         flags=re.DOTALL
     )
 
-    for agent in list_agents():
-        paths_to_check = [
-            agent.resolve_instruction_file(project_path, False),
-            agent.resolve_instruction_file(project_path, True),
-            agent.resolve_skill_local(project_path) / 'SKILL.md' if agent.resolve_skill_local(project_path) else None,
-            agent.resolve_skill_global() / 'SKILL.md' if agent.resolve_skill_global() else None,
+    if scope not in (None, "local", "global"):
+        raise ValueError("scope must be one of: local, global")
+
+    connections = ConfigManager().load_connections()
+    caller = detect_client()
+    connection = connection or (caller.tool if caller.is_known else None)
+
+    if connection is None:
+        local_connections = [
+            name
+            for name, entry in connections.items()
+            if str(project_path) in entry.get("projects", [])
         ]
-        
-        for p in paths_to_check:
-            if p and p.exists():
-                text = p.read_text(encoding='utf-8')
-                if MEMANTO_DYNAMIC_SENTINEL in text:
-                    new_text = pattern.sub(rf'\1\n{content}\n\2', text)
-                    if new_text != text:
-                        p.write_text(new_text, encoding='utf-8')
-                        messages.append(f'Injected memories into {p.name} ({agent.name})')
+        if len(local_connections) != 1:
+            raise ValueError(
+                "Cannot determine the target connection. Run sync from an "
+                "agent session or provide --connection <integration>."
+            )
+        connection = local_connections[0]
+
+    agent = get_agent(connection)
+    entry = connections.get(connection)
+    if agent is None or not isinstance(entry, dict):
+        raise ValueError(f"No Memanto connection registered for '{connection}'.")
+
+    has_local = str(project_path) in entry.get("projects", [])
+    has_global = bool(entry.get("installed_global"))
+    if scope == "local":
+        if not has_local:
+            raise ValueError(f"No local '{connection}' connection for {project_path}.")
+        is_global = False
+    elif scope == "global":
+        if not has_global:
+            raise ValueError(f"No global '{connection}' connection is registered.")
+        is_global = True
+    elif has_local:
+        is_global = False
+    elif has_global:
+        is_global = True
+    else:
+        raise ValueError(f"No '{connection}' connection applies to {project_path}.")
+
+    instruction_path = agent.resolve_instruction_file(project_path, is_global)
+    skill_dir = (
+        agent.resolve_skill_global()
+        if is_global
+        else agent.resolve_skill_local(project_path)
+    )
+    paths_to_check = [
+        instruction_path,
+        skill_dir / "SKILL.md" if skill_dir else None,
+    ]
+
+    for path in paths_to_check:
+        if path and path.exists():
+            text = path.read_text(encoding="utf-8")
+            if MEMANTO_DYNAMIC_SENTINEL in text:
+                def replacer(match):
+                    return f"{match.group(1)}\n{content}\n{match.group(2)}"
+
+                new_text = pattern.sub(replacer, text)
+                if new_text != text:
+                    path.write_text(new_text, encoding="utf-8")
+                    messages.append(
+                        f"Injected memories into {path.name} ({agent.name}, "
+                        f"{'global' if is_global else 'local'})"
+                    )
 
     return messages
