@@ -6,8 +6,10 @@
         "matcher": "startup|resume",
         "hooks": [
           {
+            "_managed_by": "memanto",
             "type": "command",
-            "command": "\"${SYS_EXECUTABLE}\" \"${HOOKS_DIR}/session_start.py\"",
+            "command": "${SYS_EXECUTABLE}",
+            "args": ["${HOOKS_DIR}/session_start.py"],
             "timeout": 30
           }
         ]
@@ -17,9 +19,12 @@
       {
         "hooks": [
           {
+            "_managed_by": "memanto",
             "type": "command",
-            "command": "\"${SYS_EXECUTABLE}\" -m memanto",
+            "command": "${SYS_EXECUTABLE}",
             "args": [
+              "-m",
+              "memanto",
               "memory",
               "sync",
               "--project-dir",
@@ -35,9 +40,11 @@
         "matcher": "Bash",
         "hooks": [
           {
+            "_managed_by": "memanto",
             "type": "command",
             "if": "Bash(memanto *)",
-            "command": "\"${SYS_EXECUTABLE}\" \"${HOOKS_DIR}/notify.py\"",
+            "command": "${SYS_EXECUTABLE}",
+            "args": ["${HOOKS_DIR}/notify.py"],
             "timeout": 10
           }
         ]

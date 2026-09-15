@@ -435,17 +435,27 @@ def _is_memanto_hook(hook_group: dict) -> bool:
     """Helper to detect if a hook group belongs to memanto."""
     if not isinstance(hook_group, dict):
         return False
-    # Handle single hook dicts (e.g. Cursor: {"command": "python ..."})
-    cmd = hook_group.get("command", "")
-    if "memanto" in cmd or "notify.py" in cmd or "session_start.py" in cmd:
+
+    def _is_owned(hook: dict) -> bool:
+        if hook.get("_managed_by") == "memanto":
+            return True
+        cmd = str(hook.get("command", ""))
+        # Legacy exact matches (pre-0.2.22)
+        if '" -m memanto' in cmd:
+            return True
+        if 'session_start.py"' in cmd and "memanto" in cmd:
+            return True
+        if 'notify.py"' in cmd and "memanto" in cmd:
+            return True
+        return False
+
+    if _is_owned(hook_group):
         return True
+
     hooks = hook_group.get("hooks", [])
     if isinstance(hooks, list):
         for h in hooks:
-            if not isinstance(h, dict):
-                continue
-            c = h.get("command", "")
-            if "memanto" in c or "notify.py" in c or "session_start.py" in c:
+            if isinstance(h, dict) and _is_owned(h):
                 return True
     return False
 

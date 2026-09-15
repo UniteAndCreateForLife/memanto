@@ -103,10 +103,12 @@ def test_remove_claude_code_preserves_unrelated_hooks_and_permissions(
                             "hooks": [
                                 {"type": "command", "command": "echo keep"},
                                 {
-                                    "type": "command",
-                                    "command": "memanto memory sync --project-dir .",
-                                },
-                                {
+                                      "_managed_by": "memanto",
+                                      "type": "command",
+                                      "command": "memanto memory sync --project-dir .",
+                                  },
+                                  {
+                                      "_managed_by": "memanto",
                                     "type": "command",
                                     "command": "memanto memory sync --project-dir .",
                                     "timeout": 30,
@@ -116,8 +118,7 @@ def test_remove_claude_code_preserves_unrelated_hooks_and_permissions(
                         {
                             "matcher": "manual",
                             "hooks": [
-                                {
-                                    "type": "command",
+                                {                                      "_managed_by": "memanto",                                    "type": "command",
                                     "command": "memanto memory sync --project-dir .",
                                     "timeout": 30,
                                 }
