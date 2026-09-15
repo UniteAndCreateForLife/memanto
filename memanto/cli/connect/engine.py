@@ -227,7 +227,13 @@ def _write_dedicated_file(file_path: Path, content: str) -> str:
             pattern = (
                 re.escape(MEMANTO_SENTINEL) + r".*?" + re.escape(MEMANTO_SENTINEL_END)
             )
-            static_content = _strip_dynamic_block(content)
+            
+            # Extract just the sentinel block from the new content so we don't accidentally
+            # duplicate frontmatter that was prepended outside the sentinel block.
+            match = re.search(pattern, content, flags=re.DOTALL)
+            new_block = match.group(0) if match else content
+            
+            static_content = _strip_dynamic_block(new_block)
             updated = re.sub(
                 pattern,
                 static_content.replace("\\", "\\\\"),
@@ -252,7 +258,13 @@ def _inject_into_file(
             pattern = (
                 re.escape(MEMANTO_SENTINEL) + r".*?" + re.escape(MEMANTO_SENTINEL_END)
             )
-            static_section = _strip_dynamic_block(section)
+            
+            # Extract just the sentinel block from the new section so we don't accidentally
+            # duplicate frontmatter that was prepended outside the sentinel block.
+            match = re.search(pattern, section, flags=re.DOTALL)
+            new_block = match.group(0) if match else section
+            
+            static_section = _strip_dynamic_block(new_block)
             updated = re.sub(
                 pattern,
                 static_section.replace("\\", "\\\\"),
