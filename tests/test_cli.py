@@ -1461,9 +1461,7 @@ class TestMEMANTOCLI:
     def test_memory_sync(self, mock_inject, mock_all_clients):
         """Test 'memanto memory sync'"""
         mock_all_clients.recall.return_value = {
-            "memories": [
-                {"type": "instruction", "content": "Test instruction"}
-            ] * 5
+            "memories": [{"type": "instruction", "content": "Test instruction"}] * 5
         }
         mock_inject.return_value = ["Injected successfully"]
         result = runner.invoke(app, ["memory", "sync"])

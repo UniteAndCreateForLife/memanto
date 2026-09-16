@@ -328,24 +328,24 @@ def memory_sync(
     with console.status(f"[{PRIMARY}]Syncing dynamic memories...", spinner="dots"):
         try:
             from memanto.cli.connect.updater import inject_dynamic_memories
-            
+
             memories_result = client.recall(
                 agent_id=agent_id,
                 query="Global project standards, architectural rules, agent workflows, and core user preferences",
                 type=["instruction", "preference", "goal"],
                 min_confidence=0.8,
                 min_similarity=0.15,
-                limit=limit
+                limit=limit,
             )
-            
+
             formatted_bullets = []
             for mem in memories_result.get("memories", []):
                 mem_type = mem.get("type", "fact").upper()
                 content = mem.get("content", "").strip()
                 formatted_bullets.append(f"- [{mem_type}] {content}")
-            
+
             formatted_text = "\n".join(formatted_bullets)
-            
+
             if formatted_text:
                 injection_messages = inject_dynamic_memories(
                     project_dir,
@@ -357,16 +357,20 @@ def memory_sync(
             else:
                 injection_messages = []
                 injection_total = 0
-                
+
         except Exception as e:
             _error(f"Failed to sync dynamic memories: {e}")
 
     elapsed = time.perf_counter() - start
 
     if injection_total == 0:
-        console.print("\n[yellow]No high-confidence, highly relevant dynamic memories found for this agent.[/yellow]")
+        console.print(
+            "\n[yellow]No high-confidence, highly relevant dynamic memories found for this agent.[/yellow]"
+        )
     else:
-        console.print(f"\n[green]OK Injected {injection_total} dynamic memories![/green]")
+        console.print(
+            f"\n[green]OK Injected {injection_total} dynamic memories![/green]"
+        )
         for msg in injection_messages:
             console.print(f"[dim]* {msg}[/dim]")
 

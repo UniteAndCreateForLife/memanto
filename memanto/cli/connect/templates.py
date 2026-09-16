@@ -232,13 +232,17 @@ Before storing, ask yourself: *"Will this generalized principle fundamentally ch
 ### 4. HOW TO EXECUTE
 For all command syntax, required flags, memory types, tagging best practices, and CLI options, refer to the `memanto-memory` SKILL.md. You MUST read this skill before running any memory operations if you do not know the exact command schema.
 
+> **CRITICAL**: Always pass `--tool {agent_id}` on `memanto recall` and `memanto answer` reads: they carry no `--source`, and that flag is how Memanto identifies you as the calling agent.
+
 **Schema Rules**:
 1. **Types**: MUST be one of: `fact`, `decision`, `instruction`, `preference`, `learning`, `goal`, `commitment`, `artifact`, `event`, `relationship`, `observation`, `error`, `context`.
 2. **Provenance**: MUST be one of: `explicit_statement`, `inferred`, `observed`, `corrected`, `validated`, `imported`.
 3. **Confidence**: MUST be a float between `0.0` and `1.0`.
 4. **Content**: Pass the memory content as a positional argument in quotes.
 
-**Example**: `memanto remember "Use UUID v4 for all primary keys across all PostgreSQL tables" --type instruction --tags "database,postgresql,schema" --confidence 1.0 --provenance explicit_statement --source github-copilot`
+**Examples**:
+- **Remember**: `memanto remember "Use UUID v4 for all primary keys across all PostgreSQL tables" --type instruction --tags "database,postgresql,schema" --confidence 1.0 --provenance explicit_statement --source {agent_id}`
+- **Recall**: `memanto recall "Skill hardening brainstorming" --limit 5 --tool {agent_id}`
 
 {MEMANTO_SENTINEL_END}
 

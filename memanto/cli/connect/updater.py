@@ -193,8 +193,8 @@ def inject_dynamic_memories(
     messages = []
 
     pattern = re.compile(
-        rf'({re.escape(MEMANTO_DYNAMIC_SENTINEL)}).*?({re.escape(MEMANTO_DYNAMIC_SENTINEL_END)})',
-        flags=re.DOTALL
+        rf"({re.escape(MEMANTO_DYNAMIC_SENTINEL)}).*?({re.escape(MEMANTO_DYNAMIC_SENTINEL_END)})",
+        flags=re.DOTALL,
     )
 
     if scope not in (None, "local", "global"):
@@ -254,6 +254,7 @@ def inject_dynamic_memories(
         if path and path.exists():
             text = path.read_text(encoding="utf-8")
             if MEMANTO_DYNAMIC_SENTINEL in text:
+
                 def replacer(match):
                     return f"{match.group(1)}\n{content}\n{match.group(2)}"
 
