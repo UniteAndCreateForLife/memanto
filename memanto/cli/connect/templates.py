@@ -235,6 +235,14 @@ Do not guess or write code blindly. Run `memanto recall` (or `memanto answer`) u
 ### 5. HOW TO EXECUTE
 For all command syntax, required flags, memory types, tagging best practices, and CLI options, refer to the `memanto-memory` SKILL.md. You MUST read this skill before running any memory operations if you do not know the exact command schema.
 
+**Schema Rules**:
+1. **Types**: MUST be one of: `fact`, `decision`, `instruction`, `preference`, `learning`, `goal`, `commitment`, `artifact`, `event`, `relationship`, `observation`, `error`, `context`.
+2. **Provenance**: MUST be one of: `explicit_statement`, `inferred`, `observed`, `corrected`, `validated`, `imported`.
+3. **Confidence**: MUST be a float between `0.0` and `1.0`.
+4. **Content**: Pass the memory content as a positional argument in quotes.
+
+**Example**: `memanto remember "Use UUID v4 for all primary keys across all PostgreSQL tables" --type instruction --tags "database,postgresql,schema" --confidence 1.0 --provenance explicit_statement --source github-copilot`
+
 {MEMANTO_SENTINEL_END}
 
 {MEMANTO_DYNAMIC_SENTINEL}
