@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 import pytest
 
-from memanto.app.utils.client_identity import UNKNOWN_CLIENT, ClientIdentity
 from memanto.cli.connect.updater import inject_dynamic_memories
 
 SENTINEL_START = "<!-- MEMANTO-DYNAMIC-MEMORIES -->"
@@ -25,15 +24,9 @@ def test_manual_sync_uses_the_single_local_connection(tmp_path):
         }
     }
 
-    with (
-        patch(
-            "memanto.cli.config.manager.ConfigManager.load_connections",
-            return_value=connections,
-        ),
-        patch(
-            "memanto.app.utils.client_identity.detect_client",
-            return_value=UNKNOWN_CLIENT,
-        ),
+    with patch(
+        "memanto.cli.config.manager.ConfigManager.load_connections",
+        return_value=connections,
     ):
         inject_dynamic_memories(str(tmp_path), "- [INSTRUCTION] C:\\Users\\rule")
 
@@ -51,15 +44,9 @@ def test_global_scope_never_updates_the_local_instruction(tmp_path, monkeypatch)
     _instruction_file(local_instruction)
     connections = {"claude-code": {"projects": [], "installed_global": True}}
 
-    with (
-        patch(
-            "memanto.cli.config.manager.ConfigManager.load_connections",
-            return_value=connections,
-        ),
-        patch(
-            "memanto.app.utils.client_identity.detect_client",
-            return_value=UNKNOWN_CLIENT,
-        ),
+    with patch(
+        "memanto.cli.config.manager.ConfigManager.load_connections",
+        return_value=connections,
     ):
         inject_dynamic_memories(
             str(tmp_path),
@@ -72,33 +59,12 @@ def test_global_scope_never_updates_the_local_instruction(tmp_path, monkeypatch)
     assert "old" in local_instruction.read_text()
 
 
-def test_known_caller_prefers_its_local_connection(tmp_path):
-    instruction_path = tmp_path / ".github" / "copilot-instructions.md"
-    _instruction_file(instruction_path)
-    connections = {
-        "github-copilot": {
-            "projects": [str(tmp_path.resolve())],
-            "installed_global": True,
-        }
-    }
-    caller = ClientIdentity(tool="github-copilot", display="GitHub Copilot")
+def test_sync_updates_all_local_connections(tmp_path):
+    copilot_path = tmp_path / ".github" / "copilot-instructions.md"
+    _instruction_file(copilot_path)
+    claude_path = tmp_path / "CLAUDE.md"
+    _instruction_file(claude_path)
 
-    with (
-        patch(
-            "memanto.cli.config.manager.ConfigManager.load_connections",
-            return_value=connections,
-        ),
-        patch(
-            "memanto.app.utils.client_identity.detect_client",
-            return_value=caller,
-        ),
-    ):
-        inject_dynamic_memories(str(tmp_path), "- [INSTRUCTION] Local rule")
-
-    assert "Local rule" in instruction_path.read_text()
-
-
-def test_manual_sync_rejects_ambiguous_local_connections(tmp_path):
     connections = {
         "github-copilot": {
             "projects": [str(tmp_path.resolve())],
@@ -110,15 +76,11 @@ def test_manual_sync_rejects_ambiguous_local_connections(tmp_path):
         },
     }
 
-    with (
-        patch(
-            "memanto.cli.config.manager.ConfigManager.load_connections",
-            return_value=connections,
-        ),
-        patch(
-            "memanto.app.utils.client_identity.detect_client",
-            return_value=UNKNOWN_CLIENT,
-        ),
-        pytest.raises(ValueError, match="Cannot determine the target connection"),
+    with patch(
+        "memanto.cli.config.manager.ConfigManager.load_connections",
+        return_value=connections,
     ):
         inject_dynamic_memories(str(tmp_path), "- [INSTRUCTION] Rule")
+
+    assert "Rule" in copilot_path.read_text()
+    assert "Rule" in claude_path.read_text()
