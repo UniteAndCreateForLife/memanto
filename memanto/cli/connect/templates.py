@@ -13,7 +13,7 @@ MEMANTO_SENTINEL_END = "<!-- /MEMANTO-MANAGED-SECTION -->"
 MEMANTO_DYNAMIC_SENTINEL = "<!-- MEMANTO-DYNAMIC-MEMORIES -->"
 MEMANTO_DYNAMIC_SENTINEL_END = "<!-- /MEMANTO-DYNAMIC-MEMORIES -->"
 
-TEMPLATE_VERSION = "1.0.0"
+TEMPLATE_VERSION = "1.0.1"
 MEMANTO_VERSION_TAG = f"<!-- memanto-template-version: {TEMPLATE_VERSION} -->"
 
 
@@ -184,9 +184,7 @@ def _base_instruction_content(
     note_suffix: str = "",
 ) -> str:
     """Generate base MEMANTO instruction content, adapted per agent."""
-    note_line = ""
-    if note_suffix:
-        note_line = f"\n> **Note**: {note_suffix}"
+    note_line = f"\n> **Note**: {note_suffix}" if note_suffix else ""
 
     return f"""{MEMANTO_SENTINEL}
 {MEMANTO_VERSION_TAG}
@@ -200,11 +198,11 @@ Every memory operation in this session goes through MEMANTO. There is no excepti
 Before you write any code or provide a final answer, you MUST evaluate if you need to RECALL context or REMEMBER new information.
 
 You must actively evaluate:
-1. RECALL (TASK INITIATION): Are you starting a complex feature, refactor, or multi-file architecture task?
-2. RECALL (AMBIGUOUS REPAIR / ERROR): Are you facing a cryptic build failure, test failure, or environment bug?
-3. RECALL (UNSTATED PREFERENCE): Are you about to choose a library, pattern, or naming convention not specified in the prompt?
-4. RECALL (EXPLICIT USER QUESTION): Did the user ask to check memory, recall context, or what was decided?
-5. RECALL (FRESH SESSION / CONTEXT REFRESH): Is this the very first turn of a new session or a shift to a new task?
+1. SYNC (FRESH SESSION / CONTEXT REFRESH): Is this the very first turn of a new session or a shift to a new task?
+2. RECALL (TASK INITIATION): Are you starting a complex feature, refactor, or multi-file architecture task?
+3. RECALL (AMBIGUOUS REPAIR / ERROR): Are you facing a cryptic build failure, test failure, or environment bug?
+4. RECALL (UNSTATED PREFERENCE): Are you about to choose a library, pattern, or naming convention not specified in the prompt?
+5. RECALL (EXPLICIT USER QUESTION): Did the user ask to check memory, recall context, or what was decided?
 6. REMEMBER (PREFERENCE): Did the user state a [USER PREFERENCE / RULE]? (e.g., code formatting style, choice of library, or tool preference)
 7. REMEMBER (GOAL): Did we establish or reach a [GOAL / MILESTONE]? (e.g., target feature completion, roadmap deliverable, or sprint objective)
 8. REMEMBER (FAILURE): Did we learn a [CORRECTION / FAILURE LESSON] from an error, tool, or test? (e.g., a bug fix workaround, error post-mortem, or test failure insight)
@@ -213,11 +211,15 @@ You must actively evaluate:
 
 **How to Execute the Evaluation:**
 - **If you are operating in Native CLI & Integrated IDE Environments (Claude Code, Cursor, Windsurf, Gemini CLI, Cline, Roo, Continue, OpenCode, Codex, Aider, or Anthropic Web UI):**
-  You MUST perform this evaluation inside a `<thinking>` block at the very start of your turn.
+  [CRITICAL SEQUENCE]: You MUST execute the following steps in exact order at the very start of your turn:
+  - **Step 1:** You MUST perform the step-by-step evaluation for SYNC, RECALL, and REMEMBER triggers inside a `<thinking>` block.
+  - **Step 2:** If you identified a FRESH SESSION (Trigger 1), your very first tool call MUST be `memanto memory sync` to inject the latest dynamic memories.
+  - **Step 3:** Execute any required `memanto recall` or `memanto remember` commands based on your evaluation.
+  - **Step 4:** Only AFTER these memory operations are complete, you may proceed to execute productive tools or output normal chat text.
 - **If you are operating in VS Code Agent Environments (VS Code Copilot or VS Code Extension Agent Mode):**
-  [CRITICAL SEQUENCE]: You MUST execute the following three steps in exact order ONCE at the very beginning of your turn (immediately after the user's prompt). Do NOT repeat this check before subsequent tool calls in the same turn.
-  - **Step 1:** You MUST invoke the terminal tool with the dummy command `echo "memory check"`. You will use this tool call's `explanation` parameter to silently write out your step-by-step evaluation for both RECALL and REMEMBER triggers WRAPPED inside a `<thinking>` XML tag.
-  - **Step 2:** If your evaluation in Step 1 found a matching trigger, your next immediate tool call MUST be `memanto recall` OR `memanto remember` as appropriate.
+  [CRITICAL SEQUENCE]: You MUST execute the following steps in exact order ONCE at the very beginning of your turn (immediately after the user's prompt). Do NOT repeat this check before subsequent tool calls in the same turn.
+  - **Step 1:** You MUST invoke the terminal tool with the dummy command `echo "memory check"`. You will use this tool call's `explanation` parameter to silently write out your step-by-step evaluation for SYNC, RECALL, and REMEMBER triggers WRAPPED inside a `<thinking>` XML tag.
+  - **Step 2:** If your evaluation in Step 1 found matching triggers, your next immediate tool calls MUST execute the required memory operations. (If you identified a FRESH SESSION (Trigger 1), you MUST run `memanto memory sync` ALONG WITH any required `memanto recall` or `memanto remember` commands).
   - **Step 3:** Only AFTER Step 1 (and Step 2 if applicable) are complete, you may proceed to execute productive tools or output normal chat text.
 ### 2. THE ABSTRACTION RULE (HOW TO THINK ABOUT MEMORY)
 Users speak naturally and implicitly. When you store a memory, **ELEVATE IT TO A PRINCIPLE**.
@@ -267,7 +269,7 @@ def get_instruction_content(agent_name: str) -> str:
         "pi": _base_instruction_content(
             agent_id="pi",
             tool_phrase="the terminal",
-            note_suffix="A Pi extension auto-syncs MEMORY.md on each fresh session start; the `memanto-memory` skill in `.pi/skills/memanto/` (or `~/.pi/agent/skills/memanto/`) contains detailed reference guidelines.",
+            note_suffix="The `memanto-memory` skill in `.pi/skills/memanto/` (or `~/.pi/agent/skills/memanto/`) contains detailed reference guidelines.",
         ),
         "cursor": _get_mdc_content(agent_id="cursor"),
         "windsurf": _base_instruction_content(
@@ -283,12 +285,10 @@ def get_instruction_content(agent_name: str) -> str:
         "cline": _base_instruction_content(
             agent_id="cline",
             tool_phrase="the terminal",
-            note_suffix="Run `memanto memory sync --project-dir .` at the start of each session to inject the latest dynamic memories into your system instructions.",
         ),
         "continue": _base_instruction_content(
             agent_id="continue",
             tool_phrase="the terminal",
-            note_suffix="Run `memanto memory sync --project-dir .` at the start of each session to inject the latest dynamic memories into your system instructions.",
         ),
         "opencode": _base_instruction_content(
             agent_id="opencode",
@@ -298,7 +298,6 @@ def get_instruction_content(agent_name: str) -> str:
         "roo": _base_instruction_content(
             agent_id="roo",
             tool_phrase="the terminal",
-            note_suffix="Run `memanto memory sync --project-dir .` at the start of each session to inject the latest dynamic memories into your system instructions.",
         ),
         "github-copilot": _get_copilot_content(),
         "augment": _base_instruction_content(
@@ -325,7 +324,6 @@ def _get_copilot_content() -> str:
     base_content = _base_instruction_content(
         agent_id="github-copilot",
         tool_phrase="the terminal",
-        note_suffix="Run `memanto memory sync --project-dir .` at the start of each session to inject the latest dynamic memories into your system instructions.",
     )
     return f"""---
 applyTo: "**/*"
