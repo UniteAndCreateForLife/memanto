@@ -197,18 +197,6 @@ Every memory operation in this session goes through MEMANTO. There is no excepti
 ### 1. ENVIRONMENT-AWARE EXECUTION PROTOCOL (MANDATORY FIRST STEP)
 Before you write any code or provide a final answer, you MUST evaluate if you need to RECALL context or REMEMBER new information. You will do this by generating a `<thinking>` block before taking any other action.
 
-You must actively evaluate:
-1. SYNC (FRESH SESSION / CONTEXT REFRESH): Is this the very first turn of a new session or a shift to a new task?
-2. RECALL (TASK INITIATION): Are you starting a complex feature, refactor, or multi-file architecture task?
-3. RECALL (AMBIGUOUS REPAIR / ERROR): Are you facing a cryptic build failure, test failure, or environment bug?
-4. RECALL (UNSTATED PREFERENCE): Are you about to choose a library, pattern, or naming convention not specified in the prompt?
-5. RECALL (EXPLICIT USER QUESTION): Did the user ask to check memory, recall context, or what was decided?
-6. REMEMBER (preference / instruction): Did the user state a `preference` or `instruction`? (e.g., code formatting style, choice of library, or tool preference) (Provenance: `explicit_statement`, `inferred`)
-7. REMEMBER (goal / commitment): Did we establish a `goal` or make a `commitment`? (e.g., target feature completion, roadmap deliverable, or sprint objective) (Provenance: `explicit_statement`)
-8. REMEMBER (learning / error): Did we extract a `learning` or log an `error` from a failure, tool, or test? (e.g., a bug fix workaround, error post-mortem, or test failure insight) (Provenance: `corrected`, `observed`)
-9. REMEMBER (decision / observation): Did we make an architectural `decision` or record an `observation`? (e.g., a technical constraint, API quirk, or dependency behavior) (Provenance: `inferred`, `observed`)
-10. REMEMBER (fact): Was a key `fact` verified? (e.g., OS behavior, path layout, or tool version requirement) (Provenance: `validated`, `observed`, `imported`)
-
 **How to Generate Your `<thinking>` Block:**
 - **Native CLI & Web Environments (Claude Code, Cursor, Windsurf, etc.):**
     Write your `<thinking>` block directly at the start of your text response. If you identify a FRESH SESSION (Trigger 1), your very next action MUST be to execute `memanto memory sync` and `memanto recall`.
@@ -217,6 +205,18 @@ You must actively evaluate:
     - **Step 1:** Invoke {tool_phrase} with the dummy command `echo "memory check"`.
     - **Step 2:** Write your step-by-step evaluation of the triggers inside a `<thinking>` XML tag and place it entirely within the tool call's `explanation` parameter.
     - **Step 3:** If you found matching triggers (like SYNC or RECALL), execute those memory operations in your very next tool calls before proceeding with the user's request.
+
+You must actively evaluate:
+1. SYNC (FRESH SESSION / CONTEXT REFRESH): Is this the very first turn of a new session or a shift to a new task?
+2. RECALL (TASK INITIATION & EVALUATION): Are you starting a new feature, evaluating PR reviews, reviewing external code, or planning a refactor?
+3. RECALL (AMBIGUOUS REPAIR / ERROR): Are you facing a cryptic build failure, test failure, or environment bug?
+4. RECALL (UNSTATED PREFERENCE): Are you about to choose a library, pattern, or naming convention not specified in the prompt?
+5. RECALL (EXPLICIT USER QUESTION): Did the user ask to check memory, recall context, or what was decided?
+6. REMEMBER (preference / instruction): Did the user state a `preference` or `instruction`? (e.g., code formatting style, choice of library, or tool preference) (Provenance: `explicit_statement`, `inferred`)
+7. REMEMBER (goal / commitment): Did we establish a `goal` or make a `commitment`? (e.g., target feature completion, roadmap deliverable, or sprint objective) (Provenance: `explicit_statement`)
+8. REMEMBER (learning / error): Did we extract a `learning` or log an `error` from a failure, tool, or test? (e.g., a bug fix workaround, error post-mortem, or test failure insight) (Provenance: `corrected`, `observed`)
+9. REMEMBER (decision / observation): Did we make an architectural `decision` or record an `observation`? (e.g., a technical constraint, API quirk, or dependency behavior) (Provenance: `inferred`, `observed`)
+10. REMEMBER (fact): Was a key `fact` verified? (e.g., OS behavior, path layout, or tool version requirement) (Provenance: `validated`, `observed`, `imported`)
 ### 2. THE ABSTRACTION RULE (HOW TO THINK ABOUT MEMORY)
 Users speak naturally and implicitly. When you store a memory, **ELEVATE IT TO A PRINCIPLE**.
 - **WRONG (Activity Log)**: "User told me to use functional components."

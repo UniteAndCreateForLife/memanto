@@ -1,8 +1,6 @@
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from memanto.cli.connect.updater import inject_dynamic_memories
 
 SENTINEL_START = "<!-- MEMANTO-DYNAMIC-MEMORIES -->"
