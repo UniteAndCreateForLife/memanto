@@ -194,8 +194,8 @@ def _base_instruction_content(
 
 Every memory operation in this session goes through MEMANTO. There is no exception. All memanto commands are **shell commands**. Always run them using {tool_phrase}. Never simulate, describe, or "pretend to call" them.{note_line}
 
-### 1. ENVIRONMENT-AWARE EXECUTION PROTOCOL
-Before you write any code or provide a final answer, you MUST evaluate if you need to RECALL context or REMEMBER new information.
+### 1. ENVIRONMENT-AWARE EXECUTION PROTOCOL (MANDATORY FIRST STEP)
+Before you write any code or provide a final answer, you MUST evaluate if you need to RECALL context or REMEMBER new information. You will do this by generating a `<thinking>` block before taking any other action.
 
 You must actively evaluate:
 1. SYNC (FRESH SESSION / CONTEXT REFRESH): Is this the very first turn of a new session or a shift to a new task?
@@ -203,24 +203,20 @@ You must actively evaluate:
 3. RECALL (AMBIGUOUS REPAIR / ERROR): Are you facing a cryptic build failure, test failure, or environment bug?
 4. RECALL (UNSTATED PREFERENCE): Are you about to choose a library, pattern, or naming convention not specified in the prompt?
 5. RECALL (EXPLICIT USER QUESTION): Did the user ask to check memory, recall context, or what was decided?
-6. REMEMBER (PREFERENCE): Did the user state a [USER PREFERENCE / RULE]? (e.g., code formatting style, choice of library, or tool preference)
-7. REMEMBER (GOAL): Did we establish or reach a [GOAL / MILESTONE]? (e.g., target feature completion, roadmap deliverable, or sprint objective)
-8. REMEMBER (FAILURE): Did we learn a [CORRECTION / FAILURE LESSON] from an error, tool, or test? (e.g., a bug fix workaround, error post-mortem, or test failure insight)
-9. REMEMBER (SYSTEM): Did we uncover a [DOMAIN INVARIANT / SYSTEM QUIRK]? (e.g., a technical constraint, API quirk, or dependency behavior)
-10. REMEMBER (ENVIRONMENT): Was a key [ENVIRONMENT FACT] verified? (e.g., OS behavior, path layout, or tool version requirement)
+6. REMEMBER (preference / instruction): Did the user state a `preference` or `instruction`? (e.g., code formatting style, choice of library, or tool preference) (Provenance: `explicit_statement`, `inferred`)
+7. REMEMBER (goal / commitment): Did we establish a `goal` or make a `commitment`? (e.g., target feature completion, roadmap deliverable, or sprint objective) (Provenance: `explicit_statement`)
+8. REMEMBER (learning / error): Did we extract a `learning` or log an `error` from a failure, tool, or test? (e.g., a bug fix workaround, error post-mortem, or test failure insight) (Provenance: `corrected`, `observed`)
+9. REMEMBER (decision / observation): Did we make an architectural `decision` or record an `observation`? (e.g., a technical constraint, API quirk, or dependency behavior) (Provenance: `inferred`, `observed`)
+10. REMEMBER (fact): Was a key `fact` verified? (e.g., OS behavior, path layout, or tool version requirement) (Provenance: `validated`, `observed`, `imported`)
 
-**How to Execute the Evaluation:**
-- **If you are operating in Native CLI & Integrated IDE Environments (Claude Code, Cursor, Windsurf, Gemini CLI, Cline, Roo, Continue, OpenCode, Codex, Aider, or Anthropic Web UI):**
-  [CRITICAL SEQUENCE]: You MUST execute the following steps in exact order at the very start of your turn:
-  - **Step 1:** You MUST perform the step-by-step evaluation for SYNC, RECALL, and REMEMBER triggers inside a `<thinking>` block.
-  - **Step 2:** If you identified a FRESH SESSION (Trigger 1), your very first tool call MUST be `memanto memory sync` to inject the latest dynamic memories.
-  - **Step 3:** Execute any required `memanto recall` or `memanto remember` commands based on your evaluation.
-  - **Step 4:** Only AFTER these memory operations are complete, you may proceed to execute productive tools or output normal chat text.
-- **If you are operating in VS Code Agent Environments (VS Code Copilot or VS Code Extension Agent Mode):**
-  [CRITICAL SEQUENCE]: You MUST execute the following steps in exact order ONCE at the very beginning of your turn (immediately after the user's prompt). Do NOT repeat this check before subsequent tool calls in the same turn.
-  - **Step 1:** You MUST invoke the terminal tool with the dummy command `echo "memory check"`. You will use this tool call's `explanation` parameter to silently write out your step-by-step evaluation for SYNC, RECALL, and REMEMBER triggers WRAPPED inside a `<thinking>` XML tag.
-  - **Step 2:** If your evaluation in Step 1 found matching triggers, your next immediate tool calls MUST execute the required memory operations. (If you identified a FRESH SESSION (Trigger 1), you MUST run `memanto memory sync` ALONG WITH any required `memanto recall` or `memanto remember` commands).
-  - **Step 3:** Only AFTER Step 1 (and Step 2 if applicable) are complete, you may proceed to execute productive tools or output normal chat text.
+**How to Generate Your `<thinking>` Block:**
+- **Native CLI & Web Environments (Claude Code, Cursor, Windsurf, etc.):**
+    Write your `<thinking>` block directly at the start of your text response. If you identify a FRESH SESSION (Trigger 1), your very next action MUST be to execute `memanto memory sync` and `memanto recall`.
+- **VS Code Agent Environments (VS Code Copilot or VS Code Extension Agent Mode):**
+    Because you are required to use tools before responding with text, you will generate your `<thinking>` block via a silent tool call.
+    - **Step 1:** Invoke {tool_phrase} with the dummy command `echo "memory check"`.
+    - **Step 2:** Write your step-by-step evaluation of the triggers inside a `<thinking>` XML tag and place it entirely within the tool call's `explanation` parameter.
+    - **Step 3:** If you found matching triggers (like SYNC or RECALL), execute those memory operations in your very next tool calls before proceeding with the user's request.
 ### 2. THE ABSTRACTION RULE (HOW TO THINK ABOUT MEMORY)
 Users speak naturally and implicitly. When you store a memory, **ELEVATE IT TO A PRINCIPLE**.
 - **WRONG (Activity Log)**: "User told me to use functional components."
@@ -245,6 +241,7 @@ For all command syntax, required flags, memory types, tagging best practices, an
 **Examples**:
 - **Remember**: `memanto remember "Use UUID v4 for all primary keys across all PostgreSQL tables" --type instruction --tags "database,postgresql,schema" --confidence 1.0 --provenance explicit_statement --source {agent_id}`
 - **Recall**: `memanto recall "Skill hardening brainstorming" --limit 5 --tool {agent_id}`
+- **Sync**: `memanto memory sync`
 
 {MEMANTO_SENTINEL_END}
 
