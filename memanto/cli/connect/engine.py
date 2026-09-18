@@ -255,7 +255,15 @@ def _inject_into_file(
         existing = file_path.read_text(encoding="utf-8")
 
         # Prevent duplicating applyTo frontmatter in Copilot instructions
-        if file_path.name.endswith(".instructions.md") and "applyTo:" in existing:
+        frontmatter = re.match(
+            r"\A---\r?\n(.*?)\r?\n---(?:\r?\n)*",
+            existing,
+            flags=re.DOTALL,
+        )
+        has_apply_to = bool(
+            frontmatter and re.search(r"(?m)^applyTo\s*:", frontmatter.group(1))
+        )
+        if file_path.name.endswith(".instructions.md") and has_apply_to:
             section = re.sub(r"^---\napplyTo:.*?\n---\n*", "", section, flags=re.DOTALL)
 
         if MEMANTO_SENTINEL in existing:

@@ -179,8 +179,6 @@ def inject_dynamic_memories(
     connection: str | None = None,
     scope: str | None = None,
 ) -> dict[str, list[str]]:
-    import re
-
     from memanto.cli.config.manager import ConfigManager
     from memanto.cli.connect.agent_registry import get_agent
     from memanto.cli.connect.templates import (
@@ -296,7 +294,10 @@ def inject_dynamic_memories(
 
                     def replacer(match):
                         if content:
-                            return f"{match.group(1)}\n{content}\n{match.group(2)}"
+                            safe_content = content.replace(
+                                MEMANTO_DYNAMIC_SENTINEL, ""
+                            ).replace(MEMANTO_DYNAMIC_SENTINEL_END, "")
+                            return f"{match.group(1)}\n{safe_content}\n{match.group(2)}"
                         return f"{match.group(1)}\n{match.group(2)}"
 
                     new_text = pattern.sub(replacer, text)
