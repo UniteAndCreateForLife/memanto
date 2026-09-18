@@ -1463,10 +1463,10 @@ class TestMEMANTOCLI:
         mock_all_clients.recall.return_value = {
             "memories": [{"type": "instruction", "content": "Test instruction"}] * 5
         }
-        mock_inject.return_value = ["Injected successfully"]
+        mock_inject.return_value = {"updated": ["Injected successfully"]}
         result = runner.invoke(app, ["memory", "sync"])
         assert result.exit_code == 0
-        assert "Injected 5 dynamic memories" in result.stdout
+        assert "Recalled 5 dynamic memories" in result.stdout
 
     def test_schedule_commands(self, mock_all_clients):
         """Test schedule commands"""

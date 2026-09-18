@@ -336,6 +336,7 @@ def memory_sync(
                 min_confidence=0.8,
                 min_similarity=0.15,
                 limit=limit,
+                status="active",
             )
 
             formatted_bullets = []
@@ -346,33 +347,34 @@ def memory_sync(
 
             formatted_text = "\n".join(formatted_bullets)
 
-            if formatted_text:
-                injection_messages = inject_dynamic_memories(
-                    project_dir,
-                    formatted_text,
-                    connection=connection,
-                    scope=scope,
-                )
-                injection_total = len(memories_result.get("memories", []))
-            else:
-                injection_messages = []
-                injection_total = 0
+            injection_results = inject_dynamic_memories(
+                project_dir,
+                formatted_text,
+                connection=connection,
+                scope=scope,
+            )
+            recalled_total = len(memories_result.get("memories", []))
 
         except Exception as e:
             _error(f"Failed to sync dynamic memories: {e}")
 
     elapsed = time.perf_counter() - start
 
-    if injection_total == 0:
+    if recalled_total == 0:
         console.print(
-            "\n[yellow]No high-confidence, highly relevant dynamic memories found for this agent.[/yellow]"
+            "\n[yellow]No active dynamic memories found. Cleared dynamic sections (if any).[/yellow]"
         )
     else:
         console.print(
-            f"\n[green]OK Injected {injection_total} dynamic memories![/green]"
+            f"\n[green]OK Recalled {recalled_total} dynamic memories![/green]"
         )
-        for msg in injection_messages:
-            console.print(f"[dim]* {msg}[/dim]")
+
+    for msg in injection_results.get("updated", []):
+        console.print(f"[green]* {msg}[/green]")
+    for msg in injection_results.get("already_current", []):
+        console.print(f"[dim]* {msg}[/dim]")
+    for msg in injection_results.get("no_eligible_target", []):
+        console.print(f"[yellow]* {msg}[/yellow]")
 
     _check_template_updates(project_dir)
     console.print(f"[dim]Completed in {elapsed:.2f}s[/dim]")

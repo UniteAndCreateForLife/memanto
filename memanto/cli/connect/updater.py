@@ -178,7 +178,7 @@ def inject_dynamic_memories(
     content: str,
     connection: str | None = None,
     scope: str | None = None,
-) -> list[str]:
+) -> dict[str, list[str]]:
     import re
 
     from memanto.cli.config.manager import ConfigManager
@@ -189,7 +189,11 @@ def inject_dynamic_memories(
     )
 
     project_path = Path(project_dir).expanduser().resolve()
-    messages = []
+    results: dict[str, list[str]] = {
+        "updated": [],
+        "already_current": [],
+        "no_eligible_target": [],
+    }
 
     pattern = re.compile(
         rf"({re.escape(MEMANTO_DYNAMIC_SENTINEL)}).*?({re.escape(MEMANTO_DYNAMIC_SENTINEL_END)})",
@@ -204,22 +208,37 @@ def inject_dynamic_memories(
     if connection:
         target_connections = [connection]
     else:
-        target_connections = [
-            name
-            for name, entry in connections.items()
-            if str(project_path) in entry.get("projects", [])
-        ]
-        if not target_connections:
+        target_connections = []
+        if scope == "local":
+            target_connections = [
+                name
+                for name, entry in connections.items()
+                if str(project_path) in entry.get("projects", [])
+            ]
+        elif scope == "global":
             target_connections = [
                 name
                 for name, entry in connections.items()
                 if entry.get("installed_global")
             ]
+        else:
+            target_connections = [
+                name
+                for name, entry in connections.items()
+                if str(project_path) in entry.get("projects", [])
+            ]
             if not target_connections:
-                raise ValueError(
-                    f"No Memanto connections found for {project_path}. "
-                    "Run 'memanto connect' first."
-                )
+                target_connections = [
+                    name
+                    for name, entry in connections.items()
+                    if entry.get("installed_global")
+                ]
+
+        if not target_connections:
+            raise ValueError(
+                f"No Memanto connections found for {project_path}. "
+                "Run 'memanto connect' first."
+            )
 
     for conn_name in target_connections:
         agent = get_agent(conn_name)
@@ -231,17 +250,21 @@ def inject_dynamic_memories(
 
         has_local = str(project_path) in entry.get("projects", [])
         has_global = bool(entry.get("installed_global"))
-        
+
         if scope == "local":
             if not has_local:
                 if connection:
-                    raise ValueError(f"No local '{conn_name}' connection for {project_path}.")
+                    raise ValueError(
+                        f"No local '{conn_name}' connection for {project_path}."
+                    )
                 continue
             is_global = False
         elif scope == "global":
             if not has_global:
                 if connection:
-                    raise ValueError(f"No global '{conn_name}' connection is registered.")
+                    raise ValueError(
+                        f"No global '{conn_name}' connection is registered."
+                    )
                 continue
             is_global = True
         elif has_local:
@@ -250,7 +273,9 @@ def inject_dynamic_memories(
             is_global = True
         else:
             if connection:
-                raise ValueError(f"No '{conn_name}' connection applies to {project_path}.")
+                raise ValueError(
+                    f"No '{conn_name}' connection applies to {project_path}."
+                )
             continue
 
         instruction_path = agent.resolve_instruction_file(project_path, is_global)
@@ -270,14 +295,24 @@ def inject_dynamic_memories(
                 if MEMANTO_DYNAMIC_SENTINEL in text:
 
                     def replacer(match):
-                        return f"{match.group(1)}\n{content}\n{match.group(2)}"
+                        if content:
+                            return f"{match.group(1)}\n{content}\n{match.group(2)}"
+                        return f"{match.group(1)}\n{match.group(2)}"
 
                     new_text = pattern.sub(replacer, text)
                     if new_text != text:
                         path.write_text(new_text, encoding="utf-8")
-                        messages.append(
+                        results["updated"].append(
                             f"Injected memories into {path.name} ({agent.name}, "
                             f"{'global' if is_global else 'local'})"
                         )
+                    else:
+                        results["already_current"].append(
+                            f"{path.name} ({agent.name}) is already current"
+                        )
+                else:
+                    results["no_eligible_target"].append(
+                        f"{path.name} ({agent.name}) has no dynamic section"
+                    )
 
-    return messages
+    return results
