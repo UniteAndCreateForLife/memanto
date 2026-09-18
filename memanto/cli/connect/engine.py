@@ -263,7 +263,7 @@ def _inject_into_file(
         has_apply_to = bool(
             frontmatter and re.search(r"(?m)^applyTo\s*:", frontmatter.group(1))
         )
-        if file_path.name.endswith(".instructions.md") and has_apply_to:
+        if file_path.name.endswith("instructions.md") and has_apply_to:
             section = re.sub(r"^---\napplyTo:.*?\n---\n*", "", section, flags=re.DOTALL)
 
         if MEMANTO_SENTINEL in existing:
