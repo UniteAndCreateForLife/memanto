@@ -253,6 +253,11 @@ def _inject_into_file(
     """Inject MEMANTO section into an existing file, or create it."""
     if file_path.exists():
         existing = file_path.read_text(encoding="utf-8")
+
+        # Prevent duplicating applyTo frontmatter in Copilot instructions
+        if file_path.name.endswith(".instructions.md") and "applyTo:" in existing:
+            section = re.sub(r"^---\napplyTo:.*?\n---\n*", "", section, flags=re.DOTALL)
+
         if MEMANTO_SENTINEL in existing:
             # Replace existing section
             pattern = (
