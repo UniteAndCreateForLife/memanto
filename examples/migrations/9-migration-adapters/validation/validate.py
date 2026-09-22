@@ -34,10 +34,10 @@ MIN_SCORE_TO_PASS = 10  # out of 15
 def _load_golden(path: Path) -> list[dict]:
     """
     Load golden question-and-answer data from a JSON file.
-    
+
     Parameters:
         path (Path): Path to the JSON file containing the golden data.
-    
+
     Returns:
         list[dict]: Parsed golden question-and-answer records.
     """
@@ -49,14 +49,17 @@ def _build_judge():
     # validate.py lives at examples/migrations/validation/
     # evaluator.py lives at examples/benchmarks/memanto-vs-mem0/
     """Create an LLM judge configured with the validation evaluator model.
-    
+
     Returns:
         LLMJudge: The configured language model judge.
     """
-    evaluator_path = _HERE.parent.parent / "benchmarks" / "memanto-vs-mem0" / "evaluator.py"
+    evaluator_path = (
+        _HERE.parent.parent / "benchmarks" / "memanto-vs-mem0" / "evaluator.py"
+    )
     if not evaluator_path.exists():
         raise FileNotFoundError(f"evaluator.py not found at {evaluator_path}")
     import importlib.util
+
     spec = importlib.util.spec_from_file_location("evaluator", evaluator_path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules["evaluator"] = mod
@@ -66,13 +69,13 @@ def _build_judge():
 
 def _print_table(results: list[dict]) -> None:
     """Print validation results in a formatted table.
-    
+
     Parameters:
         results (list[dict]): Validation results to display.
     """
     cols = ["id", "source", "score", "pass", "accuracy", "staleness", "precision"]
     widths = [8, 10, 7, 5, 10, 10, 10]
-    header = "  ".join(c.ljust(w) for c, w in zip(cols, widths))
+    header = "  ".join(c.ljust(w) for c, w in zip(cols, widths, strict=True))
     print("\n" + header)
     print("-" * len(header))
     for r in results:
@@ -92,11 +95,11 @@ def _print_table(results: list[dict]) -> None:
 def run(agent_id: str, golden_path: Path) -> int:
     """
     Run round-trip recall validation for an agent against a golden question-and-answer set.
-    
+
     Parameters:
         agent_id (str): Identifier of the agent to activate and evaluate.
         golden_path (Path): Path to the golden question-and-answer JSON file.
-    
+
     Returns:
         int: 0 if the validation meets the pass threshold, otherwise 1.
     """
@@ -110,8 +113,8 @@ def run(agent_id: str, golden_path: Path) -> int:
         print("ERROR: OPENROUTER_API_KEY is not set", file=sys.stderr)
         return 1
 
-    from memanto.cli.client.sdk_client import SdkClient
     from memanto.app.utils.errors import AgentAlreadyExistsError
+    from memanto.cli.client.sdk_client import SdkClient
 
     client = SdkClient(api_key=api_key)
 
@@ -176,16 +179,18 @@ def run(agent_id: str, golden_path: Path) -> int:
             if ok:
                 passed += 1
 
-            results.append({
-                "id": qid,
-                "source": source,
-                "total": accuracy + staleness_avoidance + precision,
-                "accuracy": accuracy,
-                "staleness_avoidance": staleness_avoidance,
-                "precision": precision,
-                "passed": ok,
-                "reasoning": reasoning,
-            })
+            results.append(
+                {
+                    "id": qid,
+                    "source": source,
+                    "total": accuracy + staleness_avoidance + precision,
+                    "accuracy": accuracy,
+                    "staleness_avoidance": staleness_avoidance,
+                    "precision": precision,
+                    "passed": ok,
+                    "reasoning": reasoning,
+                }
+            )
     finally:
         try:
             client.deactivate_agent(agent_id)
@@ -194,7 +199,9 @@ def run(agent_id: str, golden_path: Path) -> int:
 
     _print_table(results)
 
-    print(f"Result: {passed}/{len(golden)} passed  (threshold {PASS_THRESHOLD}/{len(golden)}, min score {MIN_SCORE_TO_PASS}/15)")
+    print(
+        f"Result: {passed}/{len(golden)} passed  (threshold {PASS_THRESHOLD}/{len(golden)}, min score {MIN_SCORE_TO_PASS}/15)"
+    )
 
     if passed >= PASS_THRESHOLD:
         print("PASS")
@@ -206,7 +213,9 @@ def run(agent_id: str, golden_path: Path) -> int:
 
 def main() -> None:
     """Parse command-line arguments and run recall validation for the selected agent."""
-    parser = argparse.ArgumentParser(description="Recall validation for migration showcase")
+    parser = argparse.ArgumentParser(
+        description="Recall validation for migration showcase"
+    )
     parser.add_argument("--agent", required=True, help="Agent ID to query")
     parser.add_argument(
         "--golden",

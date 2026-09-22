@@ -20,7 +20,7 @@ def parse_markdown(text: str, yaml: Any) -> tuple[str, list, str, str | None]:
         end = text.find("---", 3)
         if end != -1:
             fm_text = text[3:end].strip()
-            rest = text[end + 3:].strip()
+            rest = text[end + 3 :].strip()
             try:
                 fm = yaml.safe_load(fm_text) or {}
                 title = str(fm.get("title") or fm.get("Title") or "")

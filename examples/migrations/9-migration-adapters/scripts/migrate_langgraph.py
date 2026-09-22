@@ -26,10 +26,14 @@ for _p in (_HERE, _MIGRATIONS, _REPO_ROOT):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Dump LangGraph store and migrate to Memanto")
+    parser = argparse.ArgumentParser(
+        description="Dump LangGraph store and migrate to Memanto"
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--agent", default=None)
-    parser.add_argument("--file", default=None, help="Pre-dumped langgraph JSON (skips live dump)")
+    parser.add_argument(
+        "--file", default=None, help="Pre-dumped langgraph JSON (skips live dump)"
+    )
     args = parser.parse_args()
 
     from _shared import print_summary, require_agent
@@ -37,9 +41,11 @@ def main() -> int:
 
     if args.file:
         import json
+
         export = json.loads(Path(args.file).read_text(encoding="utf-8"))
     else:
         import json
+
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as f:
             tmp_path = f.name
         try:
@@ -60,6 +66,7 @@ def main() -> int:
             print("MOORCHEH_API_KEY is not set.", file=sys.stderr)
             return 1
         from memanto.cli.client.sdk_client import SdkClient
+
         client = SdkClient(api_key=api_key)
         client.activate_agent(agent, duration_hours=2)
     else:
@@ -85,11 +92,15 @@ def main() -> int:
 
 async def _run_dump(output: str) -> None:
     import json
+
     from dump_langgraph import _dump, _get_store, _seed_demo
 
     store, postgres = _get_store()
     if not postgres:
-        print("No LANGGRAPH_POSTGRES_URI set — using InMemoryStore with demo data.", file=sys.stderr)
+        print(
+            "No LANGGRAPH_POSTGRES_URI set — using InMemoryStore with demo data.",
+            file=sys.stderr,
+        )
         await _seed_demo(store)
         items = await _dump(store, postgres)
     else:

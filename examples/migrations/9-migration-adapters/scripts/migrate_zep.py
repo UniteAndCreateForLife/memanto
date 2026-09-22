@@ -25,10 +25,16 @@ for _p in (_HERE, _MIGRATIONS, _REPO_ROOT):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Migrate Zep Cloud memories to Memanto")
+    parser = argparse.ArgumentParser(
+        description="Migrate Zep Cloud memories to Memanto"
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--agent", default=None)
-    parser.add_argument("--file", default=None, help="Pre-exported zep_export.json (skips live API call)")
+    parser.add_argument(
+        "--file",
+        default=None,
+        help="Pre-exported zep_export.json (skips live API call)",
+    )
     args = parser.parse_args()
 
     from _shared import print_summary, require_agent
@@ -37,6 +43,7 @@ def main() -> int:
 
     if args.file:
         import json
+
         export = json.loads(Path(args.file).read_text(encoding="utf-8"))
     else:
         api_key = os.environ.get("ZEP_API_KEY", "")
@@ -45,7 +52,9 @@ def main() -> int:
             return 1
         with tempfile.TemporaryDirectory() as tmp:
             print("Fetching Zep export...")
-            _, export = run_zep_export(api_key, Path(tmp), on_progress=lambda m: print(f"  {m}"))
+            _, export = run_zep_export(
+                api_key, Path(tmp), on_progress=lambda m: print(f"  {m}")
+            )
 
     if not args.dry_run:
         agent = require_agent(args.agent, "migrate_zep.py")
@@ -56,6 +65,7 @@ def main() -> int:
             print("MOORCHEH_API_KEY is not set.", file=sys.stderr)
             return 1
         from memanto.cli.client.sdk_client import SdkClient
+
         client = SdkClient(api_key=moorcheh_key)
         client.activate_agent(agent, duration_hours=2)
     else:

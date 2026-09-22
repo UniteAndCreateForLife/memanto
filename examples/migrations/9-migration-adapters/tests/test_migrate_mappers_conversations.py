@@ -1,5 +1,3 @@
-import pytest
-
 from mappers import map_chatgpt, map_claude, map_gemini
 
 
@@ -94,7 +92,11 @@ class TestMapChatgpt:
                 },
             },
         }
-        export = {"memories": [{"id": "c1", "title": "t", "mapping": mapping, "current_node": "a1"}]}
+        export = {
+            "memories": [
+                {"id": "c1", "title": "t", "mapping": mapping, "current_node": "a1"}
+            ]
+        }
         rows = map_chatgpt(export)
         assert len(rows) == 1
         assert "assistant reply" not in rows[0]["content"]
@@ -106,7 +108,10 @@ class TestMapChatgpt:
                 "parent": None,
                 "message": {
                     "author": {"role": "user"},
-                    "content": {"content_type": "user_editable_context", "parts": ["system context"]},
+                    "content": {
+                        "content_type": "user_editable_context",
+                        "parts": ["system context"],
+                    },
                     "create_time": 1700000001,
                 },
             },
@@ -120,14 +125,22 @@ class TestMapChatgpt:
                 },
             },
         }
-        export = {"memories": [{"id": "c1", "title": "t", "mapping": mapping, "current_node": "n2"}]}
+        export = {
+            "memories": [
+                {"id": "c1", "title": "t", "mapping": mapping, "current_node": "n2"}
+            ]
+        }
         rows = map_chatgpt(export)
         assert len(rows) == 1
         assert "system context" not in rows[0]["content"]
         assert "real question" in rows[0]["content"]
 
     def test_skips_empty_conversations(self):
-        export = {"memories": [{"id": "c1", "title": "empty", "mapping": {}, "current_node": None}]}
+        export = {
+            "memories": [
+                {"id": "c1", "title": "empty", "mapping": {}, "current_node": None}
+            ]
+        }
         assert map_chatgpt(export) == []
 
     def test_cycle_guard(self):
@@ -151,7 +164,11 @@ class TestMapChatgpt:
                 },
             },
         }
-        export = {"memories": [{"id": "c1", "title": "cycle", "mapping": mapping, "current_node": "n1"}]}
+        export = {
+            "memories": [
+                {"id": "c1", "title": "cycle", "mapping": mapping, "current_node": "n1"}
+            ]
+        }
         assert len(map_chatgpt(export)) == 2
 
     def test_empty_memories(self):
@@ -195,8 +212,18 @@ class TestMapClaude:
                     "uuid": "c1",
                     "name": "conv",
                     "chat_messages": [
-                        {"uuid": "m1", "sender": "assistant", "text": "AI reply", "created_at": "2024-01-01T00:00:00Z"},
-                        {"uuid": "m2", "sender": "human", "text": "human msg", "created_at": "2024-01-01T00:00:01Z"},
+                        {
+                            "uuid": "m1",
+                            "sender": "assistant",
+                            "text": "AI reply",
+                            "created_at": "2024-01-01T00:00:00Z",
+                        },
+                        {
+                            "uuid": "m2",
+                            "sender": "human",
+                            "text": "human msg",
+                            "created_at": "2024-01-01T00:00:01Z",
+                        },
                     ],
                 }
             ]
@@ -212,8 +239,18 @@ class TestMapClaude:
                     "uuid": "c1",
                     "name": "conv",
                     "chat_messages": [
-                        {"uuid": "m1", "sender": "human", "text": "", "created_at": "2024-01-01T00:00:00Z"},
-                        {"uuid": "m2", "sender": "human", "text": "real text", "created_at": "2024-01-01T00:00:01Z"},
+                        {
+                            "uuid": "m1",
+                            "sender": "human",
+                            "text": "",
+                            "created_at": "2024-01-01T00:00:00Z",
+                        },
+                        {
+                            "uuid": "m2",
+                            "sender": "human",
+                            "text": "real text",
+                            "created_at": "2024-01-01T00:00:01Z",
+                        },
                     ],
                 }
             ]
@@ -262,11 +299,19 @@ class TestMapClaude:
         assert len(map_claude(_claude_export("first", "second", "third"))) == 3
 
     def test_skips_malformed_conv(self):
-        export = {"memories": [
-            "not a dict",
-            None,
-            {"uuid": "c1", "name": "ok", "chat_messages": [{"uuid": "m1", "sender": "human", "text": "valid"}]},
-        ]}
+        export = {
+            "memories": [
+                "not a dict",
+                None,
+                {
+                    "uuid": "c1",
+                    "name": "ok",
+                    "chat_messages": [
+                        {"uuid": "m1", "sender": "human", "text": "valid"}
+                    ],
+                },
+            ]
+        }
         rows = map_claude(export)
         assert len(rows) == 1
         assert "valid" in rows[0]["content"]
@@ -317,11 +362,17 @@ class TestMapGemini:
         assert "real text" in rows[0]["content"]
 
     def test_skips_malformed_conv(self):
-        export = {"memories": [
-            "not a dict",
-            None,
-            {"id": "g1", "createdTime": None, "messages": [{"role": "user", "text": "ok"}]},
-        ]}
+        export = {
+            "memories": [
+                "not a dict",
+                None,
+                {
+                    "id": "g1",
+                    "createdTime": None,
+                    "messages": [{"role": "user", "text": "ok"}],
+                },
+            ]
+        }
         rows = map_gemini(export)
         assert len(rows) == 1
         assert "ok" in rows[0]["content"]

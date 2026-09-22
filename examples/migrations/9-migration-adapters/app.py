@@ -50,28 +50,35 @@ API_SOURCE_KEY = "api_source_select"
 # Lazy imports — memanto must be installed (pip install -e .)
 # ---------------------------------------------------------------------------
 
+
 @st.cache_resource
 def _load_memanto():
     """
     Load the Memanto migration components required by the application.
-    
+
     Returns:
-    	tuple: The mapper registry, migration runner, and SDK client class.
+        tuple: The mapper registry, migration runner, and SDK client class.
     """
     try:
         from mappers import MAPPERS
         from runner import run_migration
+
         from memanto.cli.client.sdk_client import SdkClient
+
         return MAPPERS, run_migration, SdkClient
     except ImportError:
         pass
     try:
         from examples.migrations.mappers import MAPPERS
         from examples.migrations.runner import run_migration
+
         from memanto.cli.client.sdk_client import SdkClient
+
         return MAPPERS, run_migration, SdkClient
     except ImportError as exc:
-        st.error(f"memanto package not found. Run `pip install -e .` from the repo root.\n\n{exc}")
+        st.error(
+            f"memanto package not found. Run `pip install -e .` from the repo root.\n\n{exc}"
+        )
         st.stop()
 
 
@@ -79,15 +86,16 @@ def _load_memanto():
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_gemini_archive(tmp_path: Path) -> dict[str, Any]:
     """
     Normalize a Google Takeout Gemini archive into a memory export.
-    
+
     Parameters:
-    	tmp_path (Path): Directory containing the extracted archive files.
-    
+        tmp_path (Path): Directory containing the extracted archive files.
+
     Returns:
-    	dict[str, Any]: A dictionary with a `memories` list containing normalized conversation records.
+        dict[str, Any]: A dictionary with a `memories` list containing normalized conversation records.
     """
     import re
 
@@ -101,19 +109,24 @@ def _parse_gemini_archive(tmp_path: Path) -> dict[str, Any]:
             title = entry.get("title") or ""
             if not title.startswith("Prompted "):
                 continue
-            prompt = title[len("Prompted "):]
+            prompt = title[len("Prompted ") :]
             if not prompt.strip():
                 continue
-            memories.append({"createdTime": entry.get("time"), "messages": [{"role": "user", "text": prompt}]})
+            memories.append(
+                {
+                    "createdTime": entry.get("time"),
+                    "messages": [{"role": "user", "text": prompt}],
+                }
+            )
         return {"memories": memories}
 
     if html_hits:
         # basic extraction from HTML activity
         raw = html_hits[0].read_text(encoding="utf-8", errors="replace")
-        entries = re.findall(r'Prompted\s+(.*?)(?=Prompted\s|$)', raw, re.DOTALL)
+        entries = re.findall(r"Prompted\s+(.*?)(?=Prompted\s|$)", raw, re.DOTALL)
         memories = []
         for e in entries:
-            text = re.sub(r'<[^>]+>', '', e).strip()
+            text = re.sub(r"<[^>]+>", "", e).strip()
             if text:
                 memories.append({"messages": [{"role": "user", "text": text[:500]}]})
         return {"memories": memories}
@@ -137,14 +150,14 @@ def _parse_gemini_archive(tmp_path: Path) -> dict[str, Any]:
 def _load_export_from_bytes(file_bytes: bytes, source: str) -> dict[str, Any]:
     """
     Load a provider export ZIP and normalize its contents into a migration-ready structure.
-    
+
     Parameters:
         file_bytes (bytes): The uploaded ZIP archive contents.
         source (str): The provider identifier used to select the archive format.
-    
+
     Returns:
         dict[str, Any]: The normalized export data.
-    
+
     Raises:
         SystemExit: Stops the Streamlit app when the archive is invalid, contains unsafe paths, or lacks the required conversation file.
     """
@@ -155,11 +168,15 @@ def _load_export_from_bytes(file_bytes: bytes, source: str) -> dict[str, Any]:
                 for member in zf.infolist():
                     dest = (tmp_path / member.filename).resolve()
                     if not dest.is_relative_to(tmp_path.resolve()):
-                        st.error("ZIP archive contains unsafe paths and cannot be extracted.")
+                        st.error(
+                            "ZIP archive contains unsafe paths and cannot be extracted."
+                        )
                         st.stop()
                 zf.extractall(tmp)
         except zipfile.BadZipFile:
-            st.error("Could not read the ZIP file. Make sure you uploaded a valid export archive.")
+            st.error(
+                "Could not read the ZIP file. Make sure you uploaded a valid export archive."
+            )
             st.stop()
 
         if source in ("chatgpt", "claude"):
@@ -167,7 +184,9 @@ def _load_export_from_bytes(file_bytes: bytes, source: str) -> dict[str, Any]:
             if not json_file.exists():
                 candidates = list(tmp_path.rglob("conversations.json"))
                 if not candidates:
-                    st.error("conversations.json not found in the ZIP. Make sure you exported the right file.")
+                    st.error(
+                        "conversations.json not found in the ZIP. Make sure you exported the right file."
+                    )
                     st.stop()
                 json_file = candidates[0]
             try:
@@ -183,16 +202,17 @@ def _load_export_from_bytes(file_bytes: bytes, source: str) -> dict[str, Any]:
 def _fetch_export(source: str, provider_key: str, **kwargs) -> dict | None:
     """
     Fetch and cache an export for an API-based provider.
-    
+
     Parameters:
         source (str): Provider identifier used to select the export handler.
         provider_key (str): Provider API key.
         **kwargs: Optional provider-specific settings, including the Hindsight base URL.
-    
+
     Returns:
         dict | None: The fetched export, or `None` if fetching fails.
     """
     import hashlib
+
     raw = f"{source}:{provider_key}:{kwargs.get('base_url', '')}"
     cache_key = "export_" + hashlib.sha256(raw.encode()).hexdigest()[:16]
     if st.session_state.get(cache_key):
@@ -202,12 +222,17 @@ def _fetch_export(source: str, provider_key: str, **kwargs) -> dict | None:
             tmp_path = Path(tmp)
             if source == "mem0":
                 from memanto.cli.analyze.mem0_export import run_mem0_export
+
                 _, export = run_mem0_export(provider_key, tmp_path)
             elif source == "letta":
                 from memanto.cli.analyze.letta_export import run_letta_export
+
                 _, export = run_letta_export(provider_key, tmp_path)
             elif source == "supermemory":
-                from memanto.cli.analyze.supermemory_export import run_supermemory_export
+                from memanto.cli.analyze.supermemory_export import (
+                    run_supermemory_export,
+                )
+
                 _, export = run_supermemory_export(provider_key, tmp_path)
             elif source == "zep":
                 try:
@@ -219,7 +244,9 @@ def _fetch_export(source: str, provider_key: str, **kwargs) -> dict | None:
                 try:
                     from exporters.hindsight_export import run_hindsight_export
                 except ImportError:
-                    from examples.migrations.exporters.hindsight_export import run_hindsight_export
+                    from examples.migrations.exporters.hindsight_export import (
+                        run_hindsight_export,
+                    )
                 base_url = kwargs.get("base_url")
                 kw = {"base_url": base_url} if base_url else {}
                 _, export = run_hindsight_export(provider_key, tmp_path, **kw)
@@ -235,13 +262,13 @@ def _fetch_export(source: str, provider_key: str, **kwargs) -> dict | None:
 def _run_dry_run(source: str, export: dict[str, Any]) -> tuple[list[dict], dict]:
     """
     Generate a preview of the memories mapped from an export without performing migration.
-    
+
     Parameters:
-    	source (str): Provider identifier for the export.
-    	export (dict[str, Any]): Normalized provider export to process.
-    
+        source (str): Provider identifier for the export.
+        export (dict[str, Any]): Normalized provider export to process.
+
     Returns:
-    	tuple[list[dict], dict]: Mapped memory rows and a migration summary.
+        tuple[list[dict], dict]: Mapped memory rows and a migration summary.
     """
     _, run_migration, _ = _load_memanto()
     summary, rows = run_migration(
@@ -255,7 +282,9 @@ def _run_dry_run(source: str, export: dict[str, Any]) -> tuple[list[dict], dict]
     return rows, summary.as_dict()
 
 
-def _do_migrate(source: str, export: dict[str, Any], agent_id: str, api_key: str) -> dict:
+def _do_migrate(
+    source: str, export: dict[str, Any], agent_id: str, api_key: str
+) -> dict:
     _, run_migration, SdkClient = _load_memanto()
     client = SdkClient(api_key=api_key)
     client.activate_agent(agent_id, duration_hours=2)
@@ -278,42 +307,42 @@ def _do_migrate(source: str, export: dict[str, Any], agent_id: str, api_key: str
 # ---------------------------------------------------------------------------
 
 PROVIDERS = {
-    "chatgpt":     "ChatGPT",
-    "claude":      "Claude",
-    "gemini":      "Gemini",
-    "mem0":        "Mem0",
-    "letta":       "Letta",
+    "chatgpt": "ChatGPT",
+    "claude": "Claude",
+    "gemini": "Gemini",
+    "mem0": "Mem0",
+    "letta": "Letta",
     "supermemory": "Supermemory",
-    "zep":         "Zep",
-    "hindsight":   "Hindsight",
+    "zep": "Zep",
+    "hindsight": "Hindsight",
 }
 
 _ICO_DIR = Path(__file__).parent / "ico"
 
 PROVIDER_LOGOS = {
-    "chatgpt":     str(_ICO_DIR / "chatgpt.svg"),
-    "claude":      str(_ICO_DIR / "claude.svg"),
-    "gemini":      str(_ICO_DIR / "gemini.svg"),
-    "mem0":        str(_ICO_DIR / "mem0.svg"),
-    "letta":       str(_ICO_DIR / "letta.svg"),
+    "chatgpt": str(_ICO_DIR / "chatgpt.svg"),
+    "claude": str(_ICO_DIR / "claude.svg"),
+    "gemini": str(_ICO_DIR / "gemini.svg"),
+    "mem0": str(_ICO_DIR / "mem0.svg"),
+    "letta": str(_ICO_DIR / "letta.svg"),
     "supermemory": str(_ICO_DIR / "supermemory.svg"),
-    "zep":         str(_ICO_DIR / "zep.svg"),
-    "hindsight":   str(_ICO_DIR / "hindsight.svg"),
+    "zep": str(_ICO_DIR / "zep.svg"),
+    "hindsight": str(_ICO_DIR / "hindsight.svg"),
 }
 
 API_KEY_PROVIDERS = {
-    "mem0":        "MEM0_API_KEY",
-    "letta":       "LETTA_API_KEY",
+    "mem0": "MEM0_API_KEY",
+    "letta": "LETTA_API_KEY",
     "supermemory": "SUPERMEMORY_API_KEY",
-    "zep":         "ZEP_API_KEY",
-    "hindsight":   "HINDSIGHT_API_KEY",
+    "zep": "ZEP_API_KEY",
+    "hindsight": "HINDSIGHT_API_KEY",
 }
 
 
 def _render_api_key_panel(source: str, agent_id: str, api_key: str) -> None:
     """
     Render API-key-based export controls, migration actions, and their results.
-    
+
     Parameters:
         source (str): Provider identifier used to select the required API key and export workflow.
         agent_id (str): Target namespace identifier for migration.
@@ -354,7 +383,9 @@ def _render_api_key_panel(source: str, agent_id: str, api_key: str) -> None:
                 live = export
                 if live is None:
                     with st.spinner("Fetching export..."):
-                        live = _fetch_export(source, key.strip(), base_url=base_url.strip())
+                        live = _fetch_export(
+                            source, key.strip(), base_url=base_url.strip()
+                        )
                 if live is not None:
                     with st.spinner("Mapping records..."):
                         rows, summary = _run_dry_run(source, live)
@@ -376,11 +407,16 @@ def _render_api_key_panel(source: str, agent_id: str, api_key: str) -> None:
                 live = export
                 if live is None:
                     with st.spinner("Fetching export..."):
-                        live = _fetch_export(source, key.strip(), base_url=base_url.strip())
+                        live = _fetch_export(
+                            source, key.strip(), base_url=base_url.strip()
+                        )
                 if live is not None:
                     with st.spinner("Migrating..."):
                         result = _do_migrate(source, live, agent_id, api_key)
-                    st.session_state[f"migrate_result_{source}"] = {"result": result, "agent_id": agent_id}
+                    st.session_state[f"migrate_result_{source}"] = {
+                        "result": result,
+                        "agent_id": agent_id,
+                    }
 
     summary = st.session_state.get(f"dry_run_summary_{source}")
     rows = st.session_state.get(f"dry_run_rows_{source}")
@@ -396,7 +432,9 @@ def _render_api_key_panel(source: str, agent_id: str, api_key: str) -> None:
         imported = migrate_result["imported"]
         failed = migrate_result["failed"]
         if failed == 0:
-            st.success(f"Migration complete! {imported} memories imported into `{result_agent}`.")
+            st.success(
+                f"Migration complete! {imported} memories imported into `{result_agent}`."
+            )
         else:
             st.warning(f"Done with errors. Imported: {imported}, Failed: {failed}")
         m1, m2, m3 = st.columns(3)
@@ -423,22 +461,26 @@ def _render_api_key_panel(source: str, agent_id: str, api_key: str) -> None:
             for row in rows[:5]:
                 with st.expander(row.get("title", "Memory")[:80], expanded=False):
                     st.markdown(f"**Content:**\n\n{row.get('content', '')[:600]}")
-                    st.markdown(f"**Type:** `{row.get('type') or 'auto'}`  |  **Source:** `{row.get('source')}`  |  **Provenance:** `{row.get('provenance')}`")
+                    st.markdown(
+                        f"**Type:** `{row.get('type') or 'auto'}`  |  **Source:** `{row.get('source')}`  |  **Provenance:** `{row.get('provenance')}`"
+                    )
             if len(rows) > 5:
                 st.caption(f"...and {len(rows) - 5} more memories")
 
+
 def _svg_data_uri(path: str) -> str:
     """Convert an SVG file to a base64-encoded data URI.
-    
+
     Parameters:
-    	path (str): Path to the SVG file.
-    
+        path (str): Path to the SVG file.
+
     Returns:
-    	str: Data URI containing the encoded SVG content.
+        str: Data URI containing the encoded SVG content.
     """
     data = Path(path).read_bytes()
     b64 = base64.b64encode(data).decode()
     return f"data:image/svg+xml;base64,{b64}"
+
 
 EXPORT_INSTRUCTIONS = {
     "chatgpt": "**ChatGPT:** Settings → Data controls → Export data → confirm email → download ZIP",
@@ -452,7 +494,9 @@ def _fetch_agents(api_key: str) -> tuple[list[str], str | None]:
         _, _, SdkClient = _load_memanto()
         client = SdkClient(api_key=api_key)
         result = client.list_agents()
-        return [a["agent_id"] for a in (result.get("agents") or []) if a.get("agent_id")], None
+        return [
+            a["agent_id"] for a in (result.get("agents") or []) if a.get("agent_id")
+        ], None
     except Exception as exc:
         return [], str(exc)
 
@@ -474,12 +518,15 @@ def _create_agent(api_key: str, agent_id: str) -> tuple[bool, str]:
 def sidebar():
     """
     Render the sidebar configuration and return the selected API key and namespace.
-    
+
     Returns:
         tuple[str, str]: The Moorcheh API key and selected namespace identifier.
     """
     with st.sidebar:
-        st.image("https://raw.githubusercontent.com/moorcheh-ai/memanto/main/assets/memanto-logo.svg", width=140)
+        st.image(
+            "https://raw.githubusercontent.com/moorcheh-ai/memanto/main/assets/memanto-logo.svg",
+            width=140,
+        )
         st.markdown("## Memanto Migration")
         st.markdown("Liberate the memory your AI assistant has built about you.")
         st.divider()
@@ -516,7 +563,9 @@ def sidebar():
                 # Brand new key, or a key with no namespaces yet — skip straight
                 # to the creation form instead of showing a dropdown with a
                 # single "+ Create new namespace" option in it.
-                st.caption("No namespaces found for this key yet — create one to get started.")
+                st.caption(
+                    "No namespaces found for this key yet — create one to get started."
+                )
                 choice = CREATE_OPT
             else:
                 options = agents + [CREATE_OPT]
@@ -527,7 +576,9 @@ def sidebar():
                 choice = st.selectbox("Target namespace", options, index=default_idx)
 
             if choice == CREATE_OPT:
-                new_id = st.text_input("New namespace ID", placeholder="e.g. my-memory-namespace")
+                new_id = st.text_input(
+                    "New namespace ID", placeholder="e.g. my-memory-namespace"
+                )
                 create_clicked = st.button(
                     "Create namespace",
                     use_container_width=True,
@@ -564,27 +615,33 @@ def sidebar():
                 unsafe_allow_html=True,
             )
         st.divider()
-        st.markdown("[GitHub](https://github.com/moorcheh-ai/memanto) · [Docs](https://docs.memanto.ai)")
+        st.markdown(
+            "[GitHub](https://github.com/moorcheh-ai/memanto) · [Docs](https://docs.memanto.ai)"
+        )
     return api_key, agent_id
 
 
 def main():
     """
     Run the Streamlit application for selecting an export provider, previewing mapped memories, and migrating them into Memanto.
-    
+
     The interface supports ZIP-based conversation exports and API-key-based providers, and displays migration results when available.
     """
     api_key, agent_id = sidebar()
 
     st.title("🧠 Memanto Migration")
-    st.markdown("Upload your AI conversation export and migrate your memories into Memanto.")
+    st.markdown(
+        "Upload your AI conversation export and migrate your memories into Memanto."
+    )
 
     ZIP_PROVIDERS = ["chatgpt", "claude", "gemini"]
     col1, col2, col3 = st.columns(3)
-    for col, provider in zip((col1, col2, col3), ZIP_PROVIDERS):
+    for col, provider in zip((col1, col2, col3), ZIP_PROVIDERS, strict=True):
         with col:
             icon_uri = _svg_data_uri(PROVIDER_LOGOS[provider])
-            if st.button(f"![]({icon_uri}) {PROVIDERS[provider]}", use_container_width=True):
+            if st.button(
+                f"![]({icon_uri}) {PROVIDERS[provider]}", use_container_width=True
+            ):
                 st.session_state["source"] = provider
                 # Reset the API-key selectbox's own widget state *before* it
                 # renders below. Without this, the selectbox would still be
@@ -601,7 +658,9 @@ def main():
     api_options = ["—"] + list(API_KEY_PROVIDERS.keys())
 
     if API_SOURCE_KEY not in st.session_state:
-        st.session_state[API_SOURCE_KEY] = current_source if current_source in API_KEY_PROVIDERS else "—"
+        st.session_state[API_SOURCE_KEY] = (
+            current_source if current_source in API_KEY_PROVIDERS else "—"
+        )
 
     api_source = st.selectbox(
         "Select provider",
@@ -626,11 +685,17 @@ def main():
         st.markdown("### How it works")
         c1, c2, c3 = st.columns(3)
         with c1:
-            st.markdown("**1. Export**\nDownload your conversation history from ChatGPT, Claude or Gemini.")
+            st.markdown(
+                "**1. Export**\nDownload your conversation history from ChatGPT, Claude or Gemini."
+            )
         with c2:
-            st.markdown("**2. Upload**\nDrop the ZIP file here. Nothing leaves your machine until you click Migrate.")
+            st.markdown(
+                "**2. Upload**\nDrop the ZIP file here. Nothing leaves your machine until you click Migrate."
+            )
         with c3:
-            st.markdown("**3. Own it**\nYour memories land in Memanto and export as portable OKF markdown.")
+            st.markdown(
+                "**3. Own it**\nYour memories land in Memanto and export as portable OKF markdown."
+            )
         return
 
     st.markdown(f"### {PROVIDERS[source]} Migration")
@@ -690,7 +755,9 @@ def main():
         for row in rows[:5]:
             with st.expander(row.get("title", "Memory")[:80], expanded=False):
                 st.markdown(f"**Content:**\n\n{row.get('content', '')[:600]}")
-                st.markdown(f"**Type:** `{row.get('type') or 'auto'}`  |  **Source:** `{row.get('source')}`  |  **Provenance:** `{row.get('provenance')}`")
+                st.markdown(
+                    f"**Type:** `{row.get('type') or 'auto'}`  |  **Source:** `{row.get('source')}`  |  **Provenance:** `{row.get('provenance')}`"
+                )
 
         if len(rows) > 5:
             st.caption(f"...and {len(rows) - 5} more memories")
@@ -702,22 +769,35 @@ def main():
         elif not api_key:
             st.warning("Enter your Moorcheh API Key in the sidebar to migrate.")
         else:
-            if st.button(f"🚀 Migrate {summary['mapped_count']} memories into {agent_id}", type="primary", use_container_width=True):
+            if st.button(
+                f"🚀 Migrate {summary['mapped_count']} memories into {agent_id}",
+                type="primary",
+                use_container_width=True,
+            ):
                 with st.spinner(f"Migrating {summary['mapped_count']} memories..."):
                     result = _do_migrate(source, export, agent_id, api_key)
 
                 if result["failed"] == 0:
-                    st.success(f"Migration complete! {result['imported']} memories imported into agent `{agent_id}`.")
+                    st.success(
+                        f"Migration complete! {result['imported']} memories imported into agent `{agent_id}`."
+                    )
                 else:
-                    st.warning(f"Done with errors. Imported: {result['imported']}, Failed: {result['failed']}")
+                    st.warning(
+                        f"Done with errors. Imported: {result['imported']}, Failed: {result['failed']}"
+                    )
 
                 st.markdown("**Migration summary**")
                 st.json(result)
 
                 st.divider()
                 st.markdown("### Export to OKF")
-                st.code(f"memanto memory export --okf --output okf_bundle/ --agent {agent_id}", language="bash")
-                st.caption("Run the above command in your terminal to export your memories as portable markdown.")
+                st.code(
+                    f"memanto memory export --okf --output okf_bundle/ --agent {agent_id}",
+                    language="bash",
+                )
+                st.caption(
+                    "Run the above command in your terminal to export your memories as portable markdown."
+                )
 
 
 if __name__ == "__main__":

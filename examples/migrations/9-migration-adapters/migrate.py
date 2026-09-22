@@ -36,19 +36,23 @@ for _p in (_HERE, _REPO_ROOT):
 def _load_runner():
     try:
         from runner import run_migration
+
         return run_migration
     except ImportError:
         from examples.migrations.runner import run_migration
+
         return run_migration
 
 
 def _load_sdk():
     from memanto.cli.client.sdk_client import SdkClient
+
     return SdkClient
 
 
 def _parse_zip_export(zip_path: Path, provider: str) -> dict | None:
     import re
+
     if not zip_path.exists():
         return None
     with zipfile.ZipFile(zip_path) as zf:
@@ -72,11 +76,13 @@ def _parse_zip_export(zip_path: Path, provider: str) -> dict | None:
                     prompt = re.sub(r"^Prompted\s+", "", title).strip()
                     if not prompt:
                         continue
-                    convs.append({
-                        "messages": [{"role": "user", "text": prompt}],
-                        "createdTime": e.get("time"),
-                        "id": e.get("gmr_id"),
-                    })
+                    convs.append(
+                        {
+                            "messages": [{"role": "user", "text": prompt}],
+                            "createdTime": e.get("time"),
+                            "id": e.get("gmr_id"),
+                        }
+                    )
                 return {"memories": convs}
 
             json_files = list(tmp_path.rglob("*.json"))
@@ -85,7 +91,9 @@ def _parse_zip_export(zip_path: Path, provider: str) -> dict | None:
 
             # chatgpt and claude both use conversations.json
             if provider in ("claude", "chatgpt"):
-                conv_file = next((f for f in json_files if f.name == "conversations.json"), None)
+                conv_file = next(
+                    (f for f in json_files if f.name == "conversations.json"), None
+                )
                 target = conv_file or json_files[0]
             else:
                 target = json_files[0]
@@ -99,7 +107,7 @@ def _print_table(rows: list[tuple]) -> None:
     widths = [12, 9, 8, 9, 28, 8]
 
     def fmt(vals):
-        return "  ".join(str(v).ljust(w) for v, w in zip(vals, widths))
+        return "  ".join(str(v).ljust(w) for v, w in zip(vals, widths, strict=True))
 
     print()
     print(fmt(headers))
@@ -111,8 +119,14 @@ def _print_table(rows: list[tuple]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Showcase migration runner")
-    parser.add_argument("--agent", default=None, help="Target agent ID (omit for dry-run)")
-    parser.add_argument("--live", action="store_true", help="Run live migration (requires --agent and MOORCHEH_API_KEY)")
+    parser.add_argument(
+        "--agent", default=None, help="Target agent ID (omit for dry-run)"
+    )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Run live migration (requires --agent and MOORCHEH_API_KEY)",
+    )
     args = parser.parse_args()
 
     dry_run = not args.live
@@ -126,6 +140,7 @@ def main() -> int:
 
     if not dry_run:
         import os
+
         api_key = os.environ.get("MOORCHEH_API_KEY")
         if not api_key:
             print("MOORCHEH_API_KEY not set", file=sys.stderr)
@@ -157,8 +172,12 @@ def main() -> int:
                 agent_id=agent or "",
                 dry_run=dry_run,
             )
-            types_str = ", ".join(f"{k}:{v}" for k, v in s.type_counts.items()) or "auto"
-            rows.append((source, s.source_count, s.mapped_count, s.skipped, types_str, "OK"))
+            types_str = (
+                ", ".join(f"{k}:{v}" for k, v in s.type_counts.items()) or "auto"
+            )
+            rows.append(
+                (source, s.source_count, s.mapped_count, s.skipped, types_str, "OK")
+            )
         except Exception as exc:
             rows.append((source, "—", "—", "—", str(exc)[:28], "FAIL"))
 
@@ -175,8 +194,19 @@ def main() -> int:
                 agent_id=agent or "",
                 dry_run=dry_run,
             )
-            types_str = ", ".join(f"{k}:{v}" for k, v in s.type_counts.items()) or "auto"
-            rows.append(("langgraph", s.source_count, s.mapped_count, s.skipped, types_str, "OK"))
+            types_str = (
+                ", ".join(f"{k}:{v}" for k, v in s.type_counts.items()) or "auto"
+            )
+            rows.append(
+                (
+                    "langgraph",
+                    s.source_count,
+                    s.mapped_count,
+                    s.skipped,
+                    types_str,
+                    "OK",
+                )
+            )
         except Exception as exc:
             rows.append(("langgraph", "—", "—", "—", str(exc)[:28], "FAIL"))
     else:
@@ -194,7 +224,9 @@ def main() -> int:
         return 1
 
     if dry_run:
-        print("Dry-run complete. Pass --live --agent <id> to write memories to Memanto.")
+        print(
+            "Dry-run complete. Pass --live --agent <id> to write memories to Memanto."
+        )
     else:
         print("Migration complete.")
     return 0

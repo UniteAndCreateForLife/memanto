@@ -18,7 +18,7 @@ import sys
 def main() -> int:
     """
     Run the Letta memory migration through the Memanto CLI.
-    
+
     Returns:
         int: The subprocess exit status, or 1 when no Letta API key is provided.
     """

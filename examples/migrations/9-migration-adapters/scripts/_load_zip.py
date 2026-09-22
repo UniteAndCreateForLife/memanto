@@ -66,27 +66,31 @@ def _parse_gemini(tmp_path: Path) -> dict[str, Any] | None:
             print(f"Could not read My Activity.json: {exc}", file=sys.stderr)
             return None
         if not isinstance(entries, list):
-            print("My Activity.json is not a list — unexpected format.", file=sys.stderr)
+            print(
+                "My Activity.json is not a list — unexpected format.", file=sys.stderr
+            )
             return None
         memories = []
         for entry in entries:
             title = (entry.get("title") or "").strip()
             prompt = re.sub(r"^Prompted\s+", "", title).strip()
             if prompt:
-                memories.append({
-                    "messages": [{"role": "user", "text": prompt}],
-                    "createdTime": entry.get("time"),
-                    "id": entry.get("gmr_id"),
-                })
+                memories.append(
+                    {
+                        "messages": [{"role": "user", "text": prompt}],
+                        "createdTime": entry.get("time"),
+                        "id": entry.get("gmr_id"),
+                    }
+                )
         return {"memories": memories}
 
     html_hits = list(tmp_path.rglob("My Activity.html"))
     if html_hits:
         raw = html_hits[0].read_text(encoding="utf-8", errors="replace")
-        entries = re.findall(r'Prompted\s+(.*?)(?=Prompted\s|$)', raw, re.DOTALL)
+        entries = re.findall(r"Prompted\s+(.*?)(?=Prompted\s|$)", raw, re.DOTALL)
         memories = []
         for e in entries:
-            text = re.sub(r'<[^>]+>', '', e).strip()
+            text = re.sub(r"<[^>]+>", "", e).strip()
             if text:
                 memories.append({"messages": [{"role": "user", "text": text[:500]}]})
         return {"memories": memories}

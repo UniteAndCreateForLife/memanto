@@ -123,20 +123,17 @@ class McpStdioClient:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise RuntimeError(
-                    f"MCP request {method} timed out after "
-                    f"{self.request_timeout:g}s{self._failure_detail()}"
+                    f"MCP request {method} timed out after {self.request_timeout:g}s{self._failure_detail()}"
                 )
             try:
                 line = self._stdout_queue.get(timeout=remaining)
             except queue.Empty as exc:
                 raise RuntimeError(
-                    f"MCP request {method} timed out after "
-                    f"{self.request_timeout:g}s{self._failure_detail()}"
+                    f"MCP request {method} timed out after {self.request_timeout:g}s{self._failure_detail()}"
                 ) from exc
             if line is None:
                 raise RuntimeError(
-                    f"MCP server exited before response "
-                    f"{request_id}{self._failure_detail()}"
+                    f"MCP server exited before response {request_id}{self._failure_detail()}"
                 )
             try:
                 message = json.loads(line)
@@ -217,10 +214,8 @@ def populate(memory_file: Path, *, force: bool = False) -> None:
                         "name": "MCP Memory Server Adapter",
                         "entityType": "project",
                         "observations": [
-                            "Transforms the official MCP Memory Server JSONL "
-                            "knowledge graph into portable OKF Markdown.",
-                            "Chosen after a repository search found no existing "
-                            "MCP Memory migration submission on 2026-07-27.",
+                            "Transforms the official MCP Memory Server JSONL knowledge graph into portable OKF Markdown.",
+                            "Chosen after a repository search found no existing MCP Memory migration submission on 2026-07-27.",
                         ],
                     },
                     {
@@ -228,8 +223,7 @@ def populate(memory_file: Path, *, force: bool = False) -> None:
                         "entityType": "tool",
                         "observations": [
                             "Stores entities and relations as newline-delimited JSON.",
-                            "The package version pinned for this reproducible "
-                            "showcase is 2026.7.4.",
+                            "The package version pinned for this reproducible showcase is 2026.7.4.",
                         ],
                     },
                     {
@@ -295,16 +289,14 @@ def populate(memory_file: Path, *, force: bool = False) -> None:
                     {
                         "entityName": "MCP Memory Server Adapter",
                         "contents": [
-                            "Uses one OKF document per entity and embeds exact "
-                            "source records for lossless reconstruction.",
+                            "Uses one OKF document per entity and embeds exact source records for lossless reconstruction.",
                             "Runs offline with no third-party Python dependencies.",
                         ],
                     },
                     {
                         "entityName": "Portable OKF Bundle",
                         "contents": [
-                            "Copies the original memory.jsonl outside memories so "
-                            "Memanto does not re-ingest it."
+                            "Copies the original memory.jsonl outside memories so Memanto does not re-ingest it."
                         ],
                     },
                 ]
@@ -319,8 +311,7 @@ def populate(memory_file: Path, *, force: bool = False) -> None:
                     {
                         "entityName": "MCP Memory Server Adapter",
                         "contents": [
-                            "The initial LangGraph direction was discarded after "
-                            "active migration PRs were found."
+                            "The initial LangGraph direction was discarded after active migration PRs were found."
                         ],
                     }
                 ]

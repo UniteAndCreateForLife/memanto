@@ -39,8 +39,14 @@ for _p in (_MIGRATIONS, _REPO_ROOT):
     if _s not in sys.path:
         sys.path.insert(0, _s)
 
-from mappers import map_chatgpt, map_claude, map_gemini, map_langgraph  # type: ignore[import]
-from memanto.app.services.okf_export_service import OkfExportService
+from mappers import (  # type: ignore[import]  # noqa: E402
+    map_chatgpt,
+    map_claude,
+    map_gemini,
+    map_langgraph,
+)
+
+from memanto.app.services.okf_export_service import OkfExportService  # noqa: E402
 
 _AGENT_ID = "ai-conversations-showcase"
 _FALLBACK_TYPE = "context"
@@ -73,18 +79,22 @@ def _load_zip_export(zip_path: Path, provider: str) -> dict:
                         prompt = re.sub(r"^Prompted\s+", "", title).strip()
                         if not prompt:
                             continue
-                        convs.append({
-                            "messages": [{"role": "user", "text": prompt}],
-                            "createdTime": e.get("time"),
-                            "id": e.get("gmr_id"),
-                        })
+                        convs.append(
+                            {
+                                "messages": [{"role": "user", "text": prompt}],
+                                "createdTime": e.get("time"),
+                                "id": e.get("gmr_id"),
+                            }
+                        )
                     return {"memories": convs}
 
             json_files = list(tmp_path.rglob("*.json"))
             if not json_files:
                 return {"memories": []}
 
-            conv_file = next((f for f in json_files if f.name == "conversations.json"), None)
+            conv_file = next(
+                (f for f in json_files if f.name == "conversations.json"), None
+            )
             target = conv_file or json_files[0]
             data = json.loads(target.read_text(encoding="utf-8"))
             return {"memories": data} if isinstance(data, list) else data
@@ -95,10 +105,29 @@ async def _build_langgraph_export() -> dict:
         from langgraph.store.memory import InMemoryStore
 
         store = InMemoryStore()
-        await store.aput(("user", "alice", "memories"), "pref-editor", {"content": "Alice uses VSCode with dark mode as her primary editor."})
-        await store.aput(("user", "alice", "memories"), "pref-lang", {"content": "Alice prefers Python and FastAPI over JavaScript."})
-        await store.aput(("user", "alice", "facts"), "location", {"content": "Alice is based in Berlin, Germany."})
-        await store.aput(("project", "example-project"), "goal-1", {"content": "Build an open-source agentic memory layer.", "priority": "high"})
+        await store.aput(
+            ("user", "alice", "memories"),
+            "pref-editor",
+            {"content": "Alice uses VSCode with dark mode as her primary editor."},
+        )
+        await store.aput(
+            ("user", "alice", "memories"),
+            "pref-lang",
+            {"content": "Alice prefers Python and FastAPI over JavaScript."},
+        )
+        await store.aput(
+            ("user", "alice", "facts"),
+            "location",
+            {"content": "Alice is based in Berlin, Germany."},
+        )
+        await store.aput(
+            ("project", "example-project"),
+            "goal-1",
+            {
+                "content": "Build an open-source agentic memory layer.",
+                "priority": "high",
+            },
+        )
 
         items = []
         seen: set[tuple] = set()
@@ -114,12 +143,16 @@ async def _build_langgraph_export() -> dict:
                         key = (tuple(item.namespace), item.key)
                         if key not in seen:
                             seen.add(key)
-                            items.append({
-                                "namespace": list(item.namespace),
-                                "key": item.key,
-                                "value": item.value,
-                                "created_at": item.created_at.isoformat() if item.created_at else None,
-                            })
+                            items.append(
+                                {
+                                    "namespace": list(item.namespace),
+                                    "key": item.key,
+                                    "value": item.value,
+                                    "created_at": item.created_at.isoformat()
+                                    if item.created_at
+                                    else None,
+                                }
+                            )
                     break
                 if not batch:
                     break
@@ -127,18 +160,25 @@ async def _build_langgraph_export() -> dict:
                     key = (tuple(item.namespace), item.key)
                     if key not in seen:
                         seen.add(key)
-                        items.append({
-                            "namespace": list(item.namespace),
-                            "key": item.key,
-                            "value": item.value,
-                            "created_at": item.created_at.isoformat() if item.created_at else None,
-                        })
+                        items.append(
+                            {
+                                "namespace": list(item.namespace),
+                                "key": item.key,
+                                "value": item.value,
+                                "created_at": item.created_at.isoformat()
+                                if item.created_at
+                                else None,
+                            }
+                        )
                 if len(batch) < limit:
                     break
                 offset += limit
         return {"items": items}
     except ImportError:
-        print("  [skip] langgraph not installed — omitting LangGraph memories", file=sys.stderr)
+        print(
+            "  [skip] langgraph not installed — omitting LangGraph memories",
+            file=sys.stderr,
+        )
         return {"items": []}
 
 

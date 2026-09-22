@@ -54,13 +54,15 @@ def _load_notion_zip(zip_path: Path) -> dict | None:
                 for md_file in tmp_path.rglob("*.md"):
                     text = md_file.read_text(encoding="utf-8", errors="replace")
                     title, tags, body, created_at = parse_markdown(text, yaml)
-                    memories.append({
-                        "title": title,
-                        "body": body,
-                        "filename_stem": md_file.stem,
-                        "tags": tags,
-                        "created_at": created_at,
-                    })
+                    memories.append(
+                        {
+                            "title": title,
+                            "body": body,
+                            "filename_stem": md_file.stem,
+                            "tags": tags,
+                            "created_at": created_at,
+                        }
+                    )
     except zipfile.BadZipFile as exc:
         print(f"Invalid ZIP: {exc}", file=sys.stderr)
         return None
@@ -100,6 +102,7 @@ def main() -> int:
             print("MOORCHEH_API_KEY is not set.", file=sys.stderr)
             return 1
         from memanto.cli.client.sdk_client import SdkClient
+
         client = SdkClient(api_key=api_key)
         client.activate_agent(agent, duration_hours=2)
     else:

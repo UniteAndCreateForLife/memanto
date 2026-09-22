@@ -40,13 +40,15 @@ def _load_vault(vault_path: Path) -> dict | None:
     for md_file in vault_path.rglob("*.md"):
         text = md_file.read_text(encoding="utf-8", errors="replace")
         title, tags, body, created_at = parse_markdown(text, yaml)
-        memories.append({
-            "title": title,
-            "body": body,
-            "filename_stem": md_file.stem,
-            "tags": tags,
-            "created_at": created_at,
-        })
+        memories.append(
+            {
+                "title": title,
+                "body": body,
+                "filename_stem": md_file.stem,
+                "tags": tags,
+                "created_at": created_at,
+            }
+        )
     return {"memories": memories}
 
 
@@ -54,13 +56,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Migrate Obsidian vault to Memanto")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--agent", default=None)
-    parser.add_argument("--vault", default=VAULT_PATH, help="Path to Obsidian vault directory")
+    parser.add_argument(
+        "--vault", default=VAULT_PATH, help="Path to Obsidian vault directory"
+    )
     args = parser.parse_args()
 
     vault_path = Path(args.vault)
     if not vault_path.is_dir():
         print(f"Vault directory not found: {vault_path}", file=sys.stderr)
-        print("Set VAULT_PATH at the top of this script or pass --vault.", file=sys.stderr)
+        print(
+            "Set VAULT_PATH at the top of this script or pass --vault.", file=sys.stderr
+        )
         return 1
 
     from _shared import print_summary, require_agent
@@ -82,6 +88,7 @@ def main() -> int:
             print("MOORCHEH_API_KEY is not set.", file=sys.stderr)
             return 1
         from memanto.cli.client.sdk_client import SdkClient
+
         client = SdkClient(api_key=api_key)
         client.activate_agent(agent, duration_hours=2)
     else:

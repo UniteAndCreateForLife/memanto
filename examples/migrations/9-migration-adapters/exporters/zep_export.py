@@ -36,7 +36,9 @@ def _client(api_key: str) -> httpx.Client:
     )
 
 
-def _get_json(client: httpx.Client, path: str, params: dict[str, Any] | None = None) -> Any:
+def _get_json(
+    client: httpx.Client, path: str, params: dict[str, Any] | None = None
+) -> Any:
     resp = client.get(path, params=params or {})
     if resp.status_code >= 400:
         raise RuntimeError(f"GET {path} -> {resp.status_code}: {resp.text[:500]}")
@@ -152,6 +154,7 @@ def run_zep_export(
 
 def _write_export_json(export: dict[str, Any], dest_dir: Path, filename: str) -> Path:
     import tempfile
+
     dest_dir.mkdir(parents=True, exist_ok=True)
     out_path = dest_dir / filename
     fd, tmp_str = tempfile.mkstemp(dir=dest_dir, prefix=f".{filename}.", suffix=".tmp")

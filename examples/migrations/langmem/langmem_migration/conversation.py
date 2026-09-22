@@ -50,24 +50,20 @@ SESSIONS: list[Session] = [
         date="2026-06-02",
         title="Onboarding the assistant",
         user_turns=[
-            "Hey -- I'm Alex, a senior backend engineer on the Payments team at "
-            "Northwind. I mostly write Go and Python.",
-            "For anything new, default to TypeScript on the frontend. I really "
-            "dislike untyped JavaScript.",
+            "Hey -- I'm Alex, a senior backend engineer on the Payments team at Northwind. I mostly write Go and Python.",
+            "For anything new, default to TypeScript on the frontend. I really dislike untyped JavaScript.",
             "Also: I use dark mode everywhere, and I run pytest for Python tests.",
         ],
         ops=[
             MemoryOp(
                 "create",
                 "role",
-                "Alex is a senior backend engineer on the Payments team at "
-                "Northwind, working primarily in Go and Python.",
+                "Alex is a senior backend engineer on the Payments team at Northwind, working primarily in Go and Python.",
             ),
             MemoryOp(
                 "create",
                 "pref_ts",
-                "Alex prefers TypeScript for new frontend work and dislikes "
-                "untyped JavaScript.",
+                "Alex prefers TypeScript for new frontend work and dislikes untyped JavaScript.",
             ),
             MemoryOp(
                 "create",
@@ -85,8 +81,7 @@ SESSIONS: list[Session] = [
         date="2026-06-06",
         title="Kicking off the ledger service",
         user_turns=[
-            "We're starting a new ledger service. The goal is to have a working "
-            "double-entry core shipped to staging by end of Q3.",
+            "We're starting a new ledger service. The goal is to have a working double-entry core shipped to staging by end of Q3.",
             "It'll be Go, backed by Postgres. I'm pairing with Priya on it.",
             "Remind me to write an ADR before we lock the schema.",
         ],
@@ -94,8 +89,7 @@ SESSIONS: list[Session] = [
             MemoryOp(
                 "create",
                 "goal_ledger",
-                "Alex's goal: ship a working double-entry core for the new "
-                "ledger service to staging by end of Q3 2026.",
+                "Alex's goal: ship a working double-entry core for the new ledger service to staging by end of Q3 2026.",
             ),
             MemoryOp(
                 "create",
@@ -118,8 +112,7 @@ SESSIONS: list[Session] = [
         date="2026-06-11",
         title="Changing the test runner",
         user_turns=[
-            "I've switched the frontend test setup over to Vitest -- forget "
-            "pytest for the TS packages, that was only ever for the Python side.",
+            "I've switched the frontend test setup over to Vitest -- forget pytest for the TS packages, that was only ever for the Python side.",
             "Actually, going forward assume Vitest for all the TypeScript repos.",
         ],
         ops=[
@@ -128,8 +121,7 @@ SESSIONS: list[Session] = [
             MemoryOp(
                 "update",
                 "pref_testrunner",
-                "Alex runs pytest for Python projects and Vitest for all "
-                "TypeScript repos.",
+                "Alex runs pytest for Python projects and Vitest for all TypeScript repos.",
             ),
         ],
     ),
@@ -137,18 +129,15 @@ SESSIONS: list[Session] = [
         date="2026-06-16",
         title="A decision and a scheduling rule",
         user_turns=[
-            "We decided to use decimal (not float) for all monetary amounts in "
-            "the ledger -- money in floats is how you get audited.",
-            "Hard rule for me: never deploy on Fridays. I don't care how small "
-            "the change is.",
+            "We decided to use decimal (not float) for all monetary amounts in the ledger -- money in floats is how you get audited.",
+            "Hard rule for me: never deploy on Fridays. I don't care how small the change is.",
             "The ADR is done and merged, by the way.",
         ],
         ops=[
             MemoryOp(
                 "create",
                 "decision_decimal",
-                "Decision: the ledger service stores all monetary amounts as "
-                "decimals, never floats, to avoid rounding errors in audits.",
+                "Decision: the ledger service stores all monetary amounts as decimals, never floats, to avoid rounding errors in audits.",
             ),
             MemoryOp(
                 "create",
@@ -164,33 +153,27 @@ SESSIONS: list[Session] = [
         date="2026-06-20",
         title="Reprioritizing",
         user_turns=[
-            "Change of plan on the ledger: we're descoping multi-currency for "
-            "now. Q3 target is single-currency (USD) double-entry only.",
+            "Change of plan on the ledger: we're descoping multi-currency for now. Q3 target is single-currency (USD) double-entry only.",
             "Priya rolled off to the Fraud team, so I'm solo on the ledger now.",
-            "Long-term I still want to learn Rust and eventually rewrite the "
-            "settlement worker in it.",
+            "Long-term I still want to learn Rust and eventually rewrite the settlement worker in it.",
         ],
         ops=[
             # Evolving goal: revise the Q3 target in place.
             MemoryOp(
                 "update",
                 "goal_ledger",
-                "Alex's goal: ship a single-currency (USD) double-entry ledger "
-                "core to staging by end of Q3 2026; multi-currency is descoped "
-                "for now.",
+                "Alex's goal: ship a single-currency (USD) double-entry ledger core to staging by end of Q3 2026; multi-currency is descoped for now.",
             ),
             # The pairing relationship is no longer true -> revise it.
             MemoryOp(
                 "update",
                 "rel_priya",
-                "Priya moved from the ledger service to the Fraud team; Alex is "
-                "now the sole engineer on the ledger.",
+                "Priya moved from the ledger service to the Fraud team; Alex is now the sole engineer on the ledger.",
             ),
             MemoryOp(
                 "create",
                 "goal_rust",
-                "Alex wants to learn Rust and eventually rewrite the settlement "
-                "worker in it.",
+                "Alex wants to learn Rust and eventually rewrite the settlement worker in it.",
             ),
         ],
     ),

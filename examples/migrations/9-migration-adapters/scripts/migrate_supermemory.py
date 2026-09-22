@@ -17,20 +17,29 @@ import sys
 
 def main() -> int:
     """Run the Supermemory-to-Memanto migration command.
-    
+
     Returns:
         int: The migration command's exit status, or 1 when no Supermemory API
             key is configured.
     """
-    parser = argparse.ArgumentParser(description="Migrate Supermemory memories to Memanto")
+    parser = argparse.ArgumentParser(
+        description="Migrate Supermemory memories to Memanto"
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--agent", default=None)
-    parser.add_argument("--api-key", default=None, help="Supermemory API key (overrides SUPERMEMORY_API_KEY env)")
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Supermemory API key (overrides SUPERMEMORY_API_KEY env)",
+    )
     args = parser.parse_args()
 
     api_key = args.api_key or os.environ.get("SUPERMEMORY_API_KEY", "")
     if not api_key:
-        print("SUPERMEMORY_API_KEY is not set. Export it or pass --api-key.", file=sys.stderr)
+        print(
+            "SUPERMEMORY_API_KEY is not set. Export it or pass --api-key.",
+            file=sys.stderr,
+        )
         return 1
 
     cmd = ["memanto", "migrate", "supermemory"]

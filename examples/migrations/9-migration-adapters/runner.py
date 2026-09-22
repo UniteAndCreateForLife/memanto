@@ -10,16 +10,14 @@ obsidian, chroma) that are not part of the core package.
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
+from memanto.cli.migrate.mappers import type_breakdown
 from memanto.cli.migrate.runner import (
     BATCH_LIMIT,
     MigrationSummary,
-    load_export,
     chunked,
 )
-from memanto.cli.migrate.mappers import type_breakdown
 
 try:
     from .mappers import MAPPERS
@@ -41,7 +39,7 @@ def source_count(provider: str, export: dict[str, Any]) -> int:
         return len(export.get("items", []) or [])
     if provider == "chatgpt":
         count = 0
-        for conv in (export.get("memories", []) or []):
+        for conv in export.get("memories", []) or []:
             if not isinstance(conv, dict):
                 continue
             mapping = conv.get("mapping") or {}
@@ -62,7 +60,8 @@ def source_count(provider: str, export: dict[str, Any]) -> int:
                         content_obj = msg.get("content") or {}
                         if (
                             author.get("role") == "user"
-                            and content_obj.get("content_type", "text") != "user_editable_context"
+                            and content_obj.get("content_type", "text")
+                            != "user_editable_context"
                         ):
                             parts = content_obj.get("parts") or []
                             if any(isinstance(p, str) and p.strip() for p in parts):
@@ -123,7 +122,9 @@ def run_migration(
 
     for idx, batch in enumerate(batches, 1):
         if on_progress:
-            on_progress(f"Importing batch {idx}/{len(batches)} ({len(batch)} memories)...")
+            on_progress(
+                f"Importing batch {idx}/{len(batches)} ({len(batch)} memories)..."
+            )
         try:
             result = client.batch_remember(agent_id=agent_id, memories=batch)
         except Exception as exc:

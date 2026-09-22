@@ -1,11 +1,21 @@
 import pytest
-
-from runner import source_count
 from mappers import map_chatgpt
+from runner import source_count
 
 ALL_PROVIDERS = [
-    "mem0", "letta", "supermemory", "okf", "chatgpt", "claude",
-    "gemini", "zep", "hindsight", "langgraph", "notion", "obsidian", "chroma",
+    "mem0",
+    "letta",
+    "supermemory",
+    "okf",
+    "chatgpt",
+    "claude",
+    "gemini",
+    "zep",
+    "hindsight",
+    "langgraph",
+    "notion",
+    "obsidian",
+    "chroma",
 ]
 
 
@@ -34,10 +44,34 @@ def test_chatgpt_current_node_traversal():
             {
                 "current_node": asst_id,
                 "mapping": {
-                    root:    {"id": root,    "message": None, "parent": None},
-                    user_id: {"id": user_id, "parent": root,    "message": {"author": {"role": "user"},      "content": {"content_type": "text",                 "parts": ["hello"]}}},
-                    ctx_id:  {"id": ctx_id,  "parent": user_id, "message": {"author": {"role": "user"},      "content": {"content_type": "user_editable_context", "parts": ["ctx"]}}},
-                    asst_id: {"id": asst_id, "parent": ctx_id,  "message": {"author": {"role": "assistant"}, "content": {"content_type": "text",                 "parts": ["hi"]}}},
+                    root: {"id": root, "message": None, "parent": None},
+                    user_id: {
+                        "id": user_id,
+                        "parent": root,
+                        "message": {
+                            "author": {"role": "user"},
+                            "content": {"content_type": "text", "parts": ["hello"]},
+                        },
+                    },
+                    ctx_id: {
+                        "id": ctx_id,
+                        "parent": user_id,
+                        "message": {
+                            "author": {"role": "user"},
+                            "content": {
+                                "content_type": "user_editable_context",
+                                "parts": ["ctx"],
+                            },
+                        },
+                    },
+                    asst_id: {
+                        "id": asst_id,
+                        "parent": ctx_id,
+                        "message": {
+                            "author": {"role": "assistant"},
+                            "content": {"content_type": "text", "parts": ["hi"]},
+                        },
+                    },
                 },
             }
         ]
@@ -53,9 +87,11 @@ def test_chatgpt_fallback_count_without_current_node():
         "memories": [
             {
                 "mapping": {
-                    "n1": {"message": {"author": {"role": "user"},      "content": "hi"}},
-                    "n2": {"message": {"author": {"role": "assistant"}, "content": "hey"}},
-                    "n3": {"message": {"author": {"role": "user"},      "content": "ok"}},
+                    "n1": {"message": {"author": {"role": "user"}, "content": "hi"}},
+                    "n2": {
+                        "message": {"author": {"role": "assistant"}, "content": "hey"}
+                    },
+                    "n3": {"message": {"author": {"role": "user"}, "content": "ok"}},
                 }
             },
             {
@@ -71,14 +107,18 @@ def test_chatgpt_fallback_count_without_current_node():
 def test_claude_counts_human_messages():
     export = {
         "memories": [
-            {"chat_messages": [
-                {"sender": "human",     "text": "hello"},
-                {"sender": "assistant", "text": "hi"},
-                {"sender": "human",     "text": "bye"},
-            ]},
-            {"chat_messages": [
-                {"sender": "human", "text": "again"},
-            ]},
+            {
+                "chat_messages": [
+                    {"sender": "human", "text": "hello"},
+                    {"sender": "assistant", "text": "hi"},
+                    {"sender": "human", "text": "bye"},
+                ]
+            },
+            {
+                "chat_messages": [
+                    {"sender": "human", "text": "again"},
+                ]
+            },
         ]
     }
     assert source_count("claude", export) == 3
@@ -87,17 +127,21 @@ def test_claude_counts_human_messages():
 def test_gemini_counts_user_messages():
     export = {
         "memories": [
-            {"messages": [
-                {"role": "user",  "text": "q1"},
-                {"role": "model", "text": "a1"},
-                {"role": "user",  "text": "q2"},
-            ]}
+            {
+                "messages": [
+                    {"role": "user", "text": "q1"},
+                    {"role": "model", "text": "a1"},
+                    {"role": "user", "text": "q2"},
+                ]
+            }
         ]
     }
     assert source_count("gemini", export) == 2
 
 
-@pytest.mark.parametrize("provider", ["zep", "hindsight", "notion", "obsidian", "chroma", "mem0", "okf"])
+@pytest.mark.parametrize(
+    "provider", ["zep", "hindsight", "notion", "obsidian", "chroma", "mem0", "okf"]
+)
 def test_generic_providers_count_memories(provider):
     assert source_count(provider, {"memories": ["x", "y", "z"]}) == 3
 
@@ -114,7 +158,7 @@ def test_supermemory_falls_back_to_chunks_when_no_memories():
 
 def test_supermemory_uses_memories_when_present():
     export = {
-        "memories":  ["m1", "m2"],
+        "memories": ["m1", "m2"],
         "documents": [{"chunks": ["a", "b", "c"]}],
     }
     assert source_count("supermemory", export) == 2

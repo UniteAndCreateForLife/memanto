@@ -28,7 +28,9 @@ ZIP_PATH = str(_MIGRATIONS / "sample_data" / "gemini_export.zip")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Migrate Gemini Takeout export to Memanto")
+    parser = argparse.ArgumentParser(
+        description="Migrate Gemini Takeout export to Memanto"
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--agent", default=None)
     parser.add_argument("--file", default=ZIP_PATH, help="Path to Gemini Takeout ZIP")
@@ -57,6 +59,7 @@ def main() -> int:
             print("MOORCHEH_API_KEY is not set.", file=sys.stderr)
             return 1
         from memanto.cli.client.sdk_client import SdkClient
+
         client = SdkClient(api_key=api_key)
         client.activate_agent(agent, duration_hours=2)
     else:

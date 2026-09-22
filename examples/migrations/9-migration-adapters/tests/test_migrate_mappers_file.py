@@ -1,5 +1,4 @@
 import pytest
-
 from mappers import map_langgraph, map_notion, map_obsidian
 
 
@@ -21,7 +20,9 @@ def _md_entry(body="", title="", stem="", tags=None, created_at=None):
 
 class TestMapLanggraph:
     def test_value_dict_extracts_content(self):
-        export = {"items": [_lg_item("k1", {"content": "hello world"}, ["user", "abc"])]}
+        export = {
+            "items": [_lg_item("k1", {"content": "hello world"}, ["user", "abc"])]
+        }
         rows = map_langgraph(export)
         assert len(rows) == 1
         assert rows[0]["content"].startswith("hello world")
@@ -32,7 +33,9 @@ class TestMapLanggraph:
         assert rows[0]["content"].startswith("plain string value")
 
     def test_value_dict_no_content_key_serialized(self):
-        export = {"items": [_lg_item("k3", {"note": "some note", "priority": "high"}, [])]}
+        export = {
+            "items": [_lg_item("k3", {"note": "some note", "priority": "high"}, [])]
+        }
         rows = map_langgraph(export)
         assert len(rows) == 1
         assert "note" in rows[0]["content"] or "some note" in rows[0]["content"]
@@ -57,7 +60,9 @@ class TestMapLanggraph:
         assert r["provenance"] == "imported"
 
     def test_type_is_none(self):
-        assert map_langgraph({"items": [_lg_item("k6", "content", [])]})[0]["type"] is None
+        assert (
+            map_langgraph({"items": [_lg_item("k6", "content", [])]})[0]["type"] is None
+        )
 
     def test_empty_export(self):
         assert map_langgraph({}) == []
@@ -68,7 +73,9 @@ class TestMapLanggraph:
         assert map_langgraph(export) == []
 
     def test_empty_namespace_no_tag(self):
-        assert map_langgraph({"items": [_lg_item("k8", "content", [])]})[0]["tags"] == []
+        assert (
+            map_langgraph({"items": [_lg_item("k8", "content", [])]})[0]["tags"] == []
+        )
 
     def test_missing_namespace_key(self):
         export = {"items": [{"key": "k9", "value": "content"}]}
@@ -76,11 +83,14 @@ class TestMapLanggraph:
         assert len(rows) == 1
         assert rows[0]["tags"] == []
 
-    @pytest.mark.parametrize("namespace,expected_tag", [
-        (["a", "b"],  "a/b"),
-        (["single"],  "single"),
-        ("string-ns", "string-ns"),
-    ])
+    @pytest.mark.parametrize(
+        "namespace,expected_tag",
+        [
+            (["a", "b"], "a/b"),
+            (["single"], "single"),
+            ("string-ns", "string-ns"),
+        ],
+    )
     def test_namespace_formats(self, namespace, expected_tag):
         export = {"items": [_lg_item("k", "content", namespace)]}
         assert map_langgraph(export)[0]["tags"] == [expected_tag]
@@ -100,7 +110,9 @@ class TestMapNotion:
         assert r["type"] == "artifact"
 
     def test_title_from_frontmatter(self):
-        export = {"memories": [_md_entry(body="body", title="Explicit Title", stem="stem")]}
+        export = {
+            "memories": [_md_entry(body="body", title="Explicit Title", stem="stem")]
+        }
         assert map_notion(export)[0]["title"] == "Explicit Title"
 
     def test_title_fallback_to_stem(self):
@@ -113,25 +125,41 @@ class TestMapNotion:
         assert rows[0]["title"] in body or rows[0]["title"].endswith("...")
 
     def test_empty_body_with_title_uses_title_as_content(self):
-        export = {"memories": [_md_entry(body="", title="Page Title", stem="page-title")]}
+        export = {
+            "memories": [_md_entry(body="", title="Page Title", stem="page-title")]
+        }
         rows = map_notion(export)
         assert len(rows) == 1
         assert rows[0]["content"].startswith("Page Title")
 
     def test_empty_body_and_no_title_skipped(self):
-        assert map_notion({"memories": [_md_entry(body="", title="", stem="page")]}) == []
+        assert (
+            map_notion({"memories": [_md_entry(body="", title="", stem="page")]}) == []
+        )
 
     def test_whitespace_only_body_skipped(self):
-        assert map_notion({"memories": [_md_entry(body="   \n\t  ", title="", stem="page")]}) == []
+        assert (
+            map_notion(
+                {"memories": [_md_entry(body="   \n\t  ", title="", stem="page")]}
+            )
+            == []
+        )
 
     def test_tags_from_frontmatter(self):
-        export = {"memories": [_md_entry(body="body", tags=["python", "notes"], stem="s")]}
+        export = {
+            "memories": [_md_entry(body="body", tags=["python", "notes"], stem="s")]
+        }
         tags = map_notion(export)[0]["tags"]
         assert "python" in tags
         assert "notes" in tags
 
     def test_source_ref_is_stem(self):
-        assert map_notion({"memories": [_md_entry(body="body", stem="my-note")]})[0]["source_ref"] == "my-note"
+        assert (
+            map_notion({"memories": [_md_entry(body="body", stem="my-note")]})[0][
+                "source_ref"
+            ]
+            == "my-note"
+        )
 
     def test_empty_export(self):
         assert map_notion({}) == []
@@ -143,7 +171,11 @@ class TestMapNotion:
         assert rows[0]["tags"] == []
 
     def test_created_at_parsed(self):
-        export = {"memories": [_md_entry(body="body", stem="s", created_at="2024-01-15T10:00:00Z")]}
+        export = {
+            "memories": [
+                _md_entry(body="body", stem="s", created_at="2024-01-15T10:00:00Z")
+            ]
+        }
         assert map_notion(export)[0]["created_at"] is not None
 
 
@@ -173,20 +205,36 @@ class TestMapObsidian:
         assert len(map_obsidian(export)) == 1
 
     def test_empty_body_and_no_title_skipped(self):
-        assert map_obsidian({"memories": [_md_entry(body="", title="", stem="note")]}) == []
+        assert (
+            map_obsidian({"memories": [_md_entry(body="", title="", stem="note")]})
+            == []
+        )
 
     def test_whitespace_only_body_skipped(self):
-        assert map_obsidian({"memories": [_md_entry(body="  \n  ", title="", stem="note")]}) == []
+        assert (
+            map_obsidian(
+                {"memories": [_md_entry(body="  \n  ", title="", stem="note")]}
+            )
+            == []
+        )
 
     def test_tags_extracted(self):
         export = {"memories": [_md_entry(body="body", tags=["tag1", "tag2"], stem="s")]}
         assert map_obsidian(export)[0]["tags"] == ["tag1", "tag2"]
 
     def test_no_tags(self):
-        assert map_obsidian({"memories": [_md_entry(body="body", stem="s")]})[0]["tags"] == []
+        assert (
+            map_obsidian({"memories": [_md_entry(body="body", stem="s")]})[0]["tags"]
+            == []
+        )
 
     def test_source_ref_is_stem(self):
-        assert map_obsidian({"memories": [_md_entry(body="body", stem="vault-file")]})[0]["source_ref"] == "vault-file"
+        assert (
+            map_obsidian({"memories": [_md_entry(body="body", stem="vault-file")]})[0][
+                "source_ref"
+            ]
+            == "vault-file"
+        )
 
     def test_empty_export(self):
         assert map_obsidian({}) == []
@@ -198,14 +246,23 @@ class TestMapObsidian:
         assert rows[0]["tags"] == []
 
     def test_created_at_parsed(self):
-        export = {"memories": [_md_entry(body="body", stem="s", created_at="2023-06-01T08:30:00+00:00")]}
+        export = {
+            "memories": [
+                _md_entry(body="body", stem="s", created_at="2023-06-01T08:30:00+00:00")
+            ]
+        }
         assert map_obsidian(export)[0]["created_at"] is not None
 
-    @pytest.mark.parametrize("body,title,stem,expected_title", [
-        ("body text", "FM Title", "stem",      "FM Title"),
-        ("body text", "",         "my-stem",   "my-stem"),
-        ("short body", "",        "",          "short body"),
-    ])
+    @pytest.mark.parametrize(
+        "body,title,stem,expected_title",
+        [
+            ("body text", "FM Title", "stem", "FM Title"),
+            ("body text", "", "my-stem", "my-stem"),
+            ("short body", "", "", "short body"),
+        ],
+    )
     def test_title_resolution(self, body, title, stem, expected_title):
-        rows = map_obsidian({"memories": [_md_entry(body=body, title=title, stem=stem)]})
+        rows = map_obsidian(
+            {"memories": [_md_entry(body=body, title=title, stem=stem)]}
+        )
         assert rows[0]["title"] == expected_title

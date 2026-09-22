@@ -7,12 +7,11 @@ import io
 import json
 import os
 import random
-import re
 import sys
 import uuid
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 SCRIPT_DIR = Path(__file__).parent
 SAMPLE_DIR = SCRIPT_DIR.parent / "sample_data"
@@ -20,15 +19,16 @@ REPO_ROOT = SCRIPT_DIR.parents[2]
 
 _GEMINI_INNER = "Takeout/My Activity/Gemini Apps/My Activity.json"
 
+
 def _default_path(env_var: str, *fallback_globs: str) -> Path | None:
     """Resolve a path from an environment variable or repository-relative fallback patterns.
-    
+
     Parameters:
-    	env_var (str): Name of the environment variable containing the preferred path.
-    	fallback_globs (str): Glob patterns used to find a fallback path relative to the repository root.
-    
+        env_var (str): Name of the environment variable containing the preferred path.
+        fallback_globs (str): Glob patterns used to find a fallback path relative to the repository root.
+
     Returns:
-    	Path | None: The existing configured or first matching fallback path, or `None` if no path is found.
+        Path | None: The existing configured or first matching fallback path, or `None` if no path is found.
     """
     val = os.environ.get(env_var)
     if val:
@@ -40,12 +40,13 @@ def _default_path(env_var: str, *fallback_globs: str) -> Path | None:
             return matches[0]
     return None
 
+
 def _default_gemini_zip() -> Path | None:
     """
     Find the Gemini export ZIP specified by the environment or by scanning repository-root takeout archives.
-    
+
     Returns:
-    	Path | None: An existing path containing the expected Gemini activity JSON, or `None` if no matching archive is found.
+        Path | None: An existing path containing the expected Gemini activity JSON, or `None` if no matching archive is found.
     """
     val = os.environ.get("GEMINI_EXPORT_ZIP")
     if val:
@@ -60,9 +61,10 @@ def _default_gemini_zip() -> Path | None:
             continue
     return None
 
+
 DEFAULT_CHATGPT = _default_path("CHATGPT_EXPORT_ZIP", "chatgpt*.zip", "99b05f78*.zip")
-DEFAULT_CLAUDE  = _default_path("CLAUDE_EXPORT_ZIP",  "data-*.zip", "claude-data.zip")
-DEFAULT_GEMINI  = _default_gemini_zip()
+DEFAULT_CLAUDE = _default_path("CLAUDE_EXPORT_ZIP", "data-*.zip", "claude-data.zip")
+DEFAULT_GEMINI = _default_gemini_zip()
 
 TITLES = [
     "Implementing async Rust with Tokio",
@@ -159,12 +161,12 @@ def _fake_uuid() -> str:
 
 def _fake_ts(base: float = 1_750_000_000.0) -> float:
     """Generate a deterministic timestamp offset from the specified base value.
-    
+
     Parameters:
-    	base (float): The starting timestamp value.
-    
+        base (float): The starting timestamp value.
+
     Returns:
-    	float: The base value plus a deterministic random offset of up to 60 days.
+        float: The base value plus a deterministic random offset of up to 60 days.
     """
     return base + _rng.uniform(0, 86_400 * 60)
 
@@ -172,12 +174,12 @@ def _fake_ts(base: float = 1_750_000_000.0) -> float:
 def _fake_iso(base: float = 1_750_000_000.0) -> str:
     """
     Convert a generated timestamp to an ISO 8601 string in UTC.
-    
+
     Parameters:
-    	base (float): The base Unix timestamp used to generate the timestamp.
-    
+        base (float): The base Unix timestamp used to generate the timestamp.
+
     Returns:
-    	str: A timezone-aware UTC timestamp in ISO 8601 format.
+        str: A timezone-aware UTC timestamp in ISO 8601 format.
     """
     t = _fake_ts(base)
     return datetime.datetime.fromtimestamp(t, tz=datetime.timezone.utc).isoformat()
@@ -185,23 +187,23 @@ def _fake_iso(base: float = 1_750_000_000.0) -> str:
 
 def _pick_exchange(i: int) -> tuple[str, str]:
     """Select a user query and assistant response from the available exchanges.
-    
+
     Parameters:
-    	i (int): Index used to select an exchange, wrapping around when necessary.
-    
+        i (int): Index used to select an exchange, wrapping around when necessary.
+
     Returns:
-    	tuple[str, str]: The selected user query and assistant response.
+        tuple[str, str]: The selected user query and assistant response.
     """
     return EXCHANGES[i % len(EXCHANGES)]
 
 
 def _read_zip_json(src: Path, inner_path: str) -> object:
     """Read and parse a JSON file from a ZIP archive.
-    
+
     Parameters:
         src (Path): Path to the ZIP archive.
         inner_path (str): Path of the JSON file inside the archive.
-    
+
     Returns:
         object: The parsed JSON value.
     """
@@ -212,12 +214,12 @@ def _read_zip_json(src: Path, inner_path: str) -> object:
 
 def _write_zip(entries: dict[str, object]) -> bytes:
     """Create an in-memory ZIP archive containing the provided JSON entries.
-    
+
     Parameters:
-    	entries (dict[str, object]): Mapping of archive paths to JSON-serializable data.
-    
+        entries (dict[str, object]): Mapping of archive paths to JSON-serializable data.
+
     Returns:
-    	bytes: The encoded ZIP archive.
+        bytes: The encoded ZIP archive.
     """
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
@@ -226,18 +228,20 @@ def _write_zip(entries: dict[str, object]) -> bytes:
     return buf.getvalue()
 
 
-def _verify(zip_bytes: bytes, inner_path: str, to_memories: Callable, mapper: Callable) -> int:
+def _verify(
+    zip_bytes: bytes, inner_path: str, to_memories: Callable, mapper: Callable
+) -> int:
     """
     Count the mapped memories produced from JSON stored in a ZIP archive.
-    
+
     Parameters:
-    	zip_bytes (bytes): ZIP archive contents.
-    	inner_path (str): Path of the JSON file inside the archive.
-    	to_memories (Callable): Converts the decoded JSON to memory data.
-    	mapper (Callable): Maps the memory data to migration payloads.
-    
+        zip_bytes (bytes): ZIP archive contents.
+        inner_path (str): Path of the JSON file inside the archive.
+        to_memories (Callable): Converts the decoded JSON to memory data.
+        mapper (Callable): Maps the memory data to migration payloads.
+
     Returns:
-    	int: Number of payloads produced by the mapper.
+        int: Number of payloads produced by the mapper.
     """
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
         with z.open(inner_path) as f:
@@ -249,15 +253,16 @@ def _verify(zip_bytes: bytes, inner_path: str, to_memories: Callable, mapper: Ca
 # ChatGPT
 # ---------------------------------------------------------------------------
 
+
 def _build_chatgpt_conv(ci: int) -> dict:
     """
     Build a synthetic ChatGPT conversation record with deterministic identifiers, timestamps, and sample exchange content.
-    
+
     Parameters:
-    	ci (int): Index used to select the sample exchange and conversation title.
-    
+        ci (int): Index used to select the sample exchange and conversation title.
+
     Returns:
-    	dict: A ChatGPT-compatible conversation mapping containing user and assistant messages.
+        dict: A ChatGPT-compatible conversation mapping containing user and assistant messages.
     """
     user_q, asst_a = _pick_exchange(ci)
     root_id, user_id, asst_id = _fake_uuid(), _fake_uuid(), _fake_uuid()
@@ -300,10 +305,10 @@ def _build_chatgpt_conv(ci: int) -> dict:
 def deidentify_chatgpt(src: Path) -> bytes:
     """
     Create a de-identified ChatGPT export ZIP from a source export.
-    
+
     Parameters:
         src (Path): Path to the source ZIP containing ``conversations.json``.
-    
+
     Returns:
         bytes: ZIP archive containing up to five synthetic conversations in
             ``conversations.json``.
@@ -315,14 +320,15 @@ def deidentify_chatgpt(src: Path) -> bytes:
 
 def verify_chatgpt(zip_bytes: bytes) -> int:
     """Validate a ChatGPT export ZIP by mapping its conversation data.
-    
+
     Parameters:
-    	zip_bytes (bytes): ZIP archive containing a `conversations.json` file.
-    
+        zip_bytes (bytes): ZIP archive containing a `conversations.json` file.
+
     Returns:
-    	int: Number of mapped memories produced from the export.
+        int: Number of mapped memories produced from the export.
     """
     from examples.migrations.mappers import map_chatgpt
+
     return _verify(zip_bytes, "conversations.json", lambda raw: raw, map_chatgpt)
 
 
@@ -330,12 +336,13 @@ def verify_chatgpt(zip_bytes: bytes) -> int:
 # Claude
 # ---------------------------------------------------------------------------
 
+
 def _build_claude_conv(ci: int) -> dict:
     """Build a synthetic Claude conversation with deterministic identifiers, timestamps, and message content.
-    
+
     Parameters:
     \tci (int): Index used to select the conversation title and exchange content.
-    
+
     Returns:
     \ta dictionary containing the generated Claude conversation.
     """
@@ -351,7 +358,15 @@ def _build_claude_conv(ci: int) -> dict:
             {
                 "uuid": human_uuid,
                 "text": user_q,
-                "content": [{"start_timestamp": _fake_iso(base_ts), "stop_timestamp": _fake_iso(base_ts + 1), "flags": None, "type": "text", "text": user_q}],
+                "content": [
+                    {
+                        "start_timestamp": _fake_iso(base_ts),
+                        "stop_timestamp": _fake_iso(base_ts + 1),
+                        "flags": None,
+                        "type": "text",
+                        "text": user_q,
+                    }
+                ],
                 "sender": "human",
                 "created_at": _fake_iso(base_ts),
                 "updated_at": _fake_iso(base_ts + 1),
@@ -362,7 +377,15 @@ def _build_claude_conv(ci: int) -> dict:
             {
                 "uuid": asst_uuid,
                 "text": asst_a,
-                "content": [{"start_timestamp": _fake_iso(base_ts + 2), "stop_timestamp": _fake_iso(base_ts + 5), "flags": None, "type": "text", "text": asst_a}],
+                "content": [
+                    {
+                        "start_timestamp": _fake_iso(base_ts + 2),
+                        "stop_timestamp": _fake_iso(base_ts + 5),
+                        "flags": None,
+                        "type": "text",
+                        "text": asst_a,
+                    }
+                ],
                 "sender": "assistant",
                 "created_at": _fake_iso(base_ts + 2),
                 "updated_at": _fake_iso(base_ts + 5),
@@ -377,10 +400,10 @@ def _build_claude_conv(ci: int) -> dict:
 def deidentify_claude(src: Path) -> bytes:
     """
     Create a de-identified Claude export ZIP from a source export.
-    
+
     Parameters:
         src (Path): Path to the source ZIP containing ``conversations.json``.
-    
+
     Returns:
         bytes: ZIP archive containing up to five synthetic conversations in
             ``conversations.json``.
@@ -393,14 +416,15 @@ def deidentify_claude(src: Path) -> bytes:
 def verify_claude(zip_bytes: bytes) -> int:
     """
     Verify a generated Claude export ZIP with the Claude migration mapper.
-    
+
     Parameters:
-    	zip_bytes (bytes): ZIP archive containing a Claude `conversations.json` file.
-    
+        zip_bytes (bytes): ZIP archive containing a Claude `conversations.json` file.
+
     Returns:
-    	int: Number of mapped memories produced from the archive.
+        int: Number of mapped memories produced from the archive.
     """
     from examples.migrations.mappers import map_claude
+
     return _verify(zip_bytes, "conversations.json", lambda raw: raw, map_claude)
 
 
@@ -411,12 +435,12 @@ def verify_claude(zip_bytes: bytes) -> int:
 
 def _build_gemini_entry(ci: int) -> dict:
     """Build a synthetic Gemini activity entry for the specified exchange index.
-    
+
     Parameters:
-    	ci (int): Index used to select the source exchange.
-    
+        ci (int): Index used to select the source exchange.
+
     Returns:
-    	dict: A de-identified Gemini activity entry containing the selected prompt and a generated timestamp.
+        dict: A de-identified Gemini activity entry containing the selected prompt and a generated timestamp.
     """
     user_q, _ = _pick_exchange(ci + 2)
     entry: dict = {
@@ -432,12 +456,12 @@ def _build_gemini_entry(ci: int) -> dict:
 
 def deidentify_gemini(src: Path) -> bytes:
     """Create a de-identified Gemini export ZIP from a source export.
-    
+
     Parameters:
-    	src (Path): Path to the source Gemini export ZIP.
-    
+        src (Path): Path to the source Gemini export ZIP.
+
     Returns:
-    	bytes: ZIP data containing synthetic Gemini activity entries.
+        bytes: ZIP data containing synthetic Gemini activity entries.
     """
     real = _read_zip_json(src, _GEMINI_INNER)
     entries = [_build_gemini_entry(i) for i in range(min(5, len(real)))]
@@ -447,27 +471,34 @@ def deidentify_gemini(src: Path) -> bytes:
 def verify_gemini(zip_bytes: bytes) -> int:
     """
     Verify that a generated Gemini export can be processed by the Gemini mapper.
-    
+
     Parameters:
-    	zip_bytes (bytes): Generated Gemini export ZIP data.
-    
+        zip_bytes (bytes): Generated Gemini export ZIP data.
+
     Returns:
-    	int: Number of mapped memories produced from matching Gemini entries.
+        int: Number of mapped memories produced from matching Gemini entries.
     """
     from examples.migrations.mappers import map_gemini
 
     def to_memories(raw: list) -> list:
         """Convert matching Gemini activity entries into memory objects.
-        
+
         Parameters:
-        	raw (list): Gemini activity entries to transform.
-        
+                raw (list): Gemini activity entries to transform.
+
         Returns:
-        	list: Memory objects created from entries whose titles start with "Prompted ".
+                list: Memory objects created from entries whose titles start with "Prompted ".
         """
         return [
-            {"messages": [{"role": "user", "text": e["title"].removeprefix("Prompted ")}], "createdTime": e.get("time"), "id": _fake_uuid()}
-            for e in raw if e.get("title", "").startswith("Prompted ")
+            {
+                "messages": [
+                    {"role": "user", "text": e["title"].removeprefix("Prompted ")}
+                ],
+                "createdTime": e.get("time"),
+                "id": _fake_uuid(),
+            }
+            for e in raw
+            if e.get("title", "").startswith("Prompted ")
         ]
 
     return _verify(zip_bytes, _GEMINI_INNER, to_memories, map_gemini)
@@ -478,7 +509,13 @@ def verify_gemini(zip_bytes: bytes) -> int:
 # ---------------------------------------------------------------------------
 
 PROVIDERS: list[tuple[str, Path | None, str, Callable, Callable]] = [
-    ("chatgpt", DEFAULT_CHATGPT, "chatgpt_export.zip", deidentify_chatgpt, verify_chatgpt),
+    (
+        "chatgpt",
+        DEFAULT_CHATGPT,
+        "chatgpt_export.zip",
+        deidentify_chatgpt,
+        verify_chatgpt,
+    ),
     ("claude", DEFAULT_CLAUDE, "claude_export.zip", deidentify_claude, verify_claude),
     ("gemini", DEFAULT_GEMINI, "gemini_export.zip", deidentify_gemini, verify_gemini),
 ]
@@ -487,10 +524,12 @@ PROVIDERS: list[tuple[str, Path | None, str, Callable, Callable]] = [
 def main() -> None:
     """
     Generate de-identified sample export ZIP files and verify their mapper output.
-    
+
     Command-line options specify source exports for ChatGPT, Claude, and Gemini. Missing sources are skipped; the process exits with status 1 if any processed export produces no mapped payloads.
     """
-    parser = argparse.ArgumentParser(description="Generate de-identified sample export ZIPs")
+    parser = argparse.ArgumentParser(
+        description="Generate de-identified sample export ZIPs"
+    )
     parser.add_argument("--chatgpt", type=Path, default=DEFAULT_CHATGPT)
     parser.add_argument("--claude", type=Path, default=DEFAULT_CLAUDE)
     parser.add_argument("--gemini", type=Path, default=DEFAULT_GEMINI)

@@ -58,17 +58,30 @@ def _fetch_chroma_collection(collection: str, host: str, port: int) -> dict | No
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Migrate a Chroma collection to Memanto")
+    parser = argparse.ArgumentParser(
+        description="Migrate a Chroma collection to Memanto"
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--agent", default=None)
-    parser.add_argument("--collection", default=None, help="Collection name (overrides CHROMA_COLLECTION)")
-    parser.add_argument("--host", default=None, help="ChromaDB host (overrides CHROMA_HOST)")
-    parser.add_argument("--port", default=None, type=int, help="ChromaDB port (overrides CHROMA_PORT)")
+    parser.add_argument(
+        "--collection",
+        default=None,
+        help="Collection name (overrides CHROMA_COLLECTION)",
+    )
+    parser.add_argument(
+        "--host", default=None, help="ChromaDB host (overrides CHROMA_HOST)"
+    )
+    parser.add_argument(
+        "--port", default=None, type=int, help="ChromaDB port (overrides CHROMA_PORT)"
+    )
     args = parser.parse_args()
 
     collection = args.collection or os.environ.get("CHROMA_COLLECTION", "")
     if not collection:
-        print("CHROMA_COLLECTION is not set. Export it or pass --collection.", file=sys.stderr)
+        print(
+            "CHROMA_COLLECTION is not set. Export it or pass --collection.",
+            file=sys.stderr,
+        )
         return 1
 
     host = args.host or os.environ.get("CHROMA_HOST", "localhost")
@@ -94,6 +107,7 @@ def main() -> int:
             print("MOORCHEH_API_KEY is not set.", file=sys.stderr)
             return 1
         from memanto.cli.client.sdk_client import SdkClient
+
         client = SdkClient(api_key=api_key)
         client.activate_agent(agent, duration_hours=2)
     else:

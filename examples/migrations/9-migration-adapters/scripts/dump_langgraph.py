@@ -21,10 +21,10 @@ import sys
 def _get_store():
     """
     Create the configured LangGraph store.
-    
+
     Returns:
         tuple: The store instance and a boolean indicating whether Postgres mode is enabled.
-    
+
     Raises:
         SystemExit: If the Postgres dependency is unavailable or the configured store cannot be initialized.
     """
@@ -32,28 +32,33 @@ def _get_store():
     if uri:
         try:
             from langgraph.store.postgres import AsyncPostgresStore
+
             return AsyncPostgresStore.from_conn_string(uri), True
         except ImportError:
-            print("langgraph[postgres] not installed. Run: pip install 'langgraph[postgres]'", file=sys.stderr)
+            print(
+                "langgraph[postgres] not installed. Run: pip install 'langgraph[postgres]'",
+                file=sys.stderr,
+            )
             sys.exit(1)
         except Exception as e:
             print(f"Failed to initialize Postgres store: {e}", file=sys.stderr)
             sys.exit(1)
     else:
         from langgraph.store.memory import InMemoryStore
+
         return InMemoryStore(), False
 
 
 async def _dump(store, postgres: bool) -> list[dict]:
     """
     Export all items from a LangGraph store.
-    
+
     Parameters:
-    	store: Store providing namespace listing and item search operations.
-    	postgres (bool): Whether the store uses the Postgres backend.
-    
+        store: Store providing namespace listing and item search operations.
+        postgres (bool): Whether the store uses the Postgres backend.
+
     Returns:
-    	list[dict]: Exported items with namespace, key, value, and timestamp fields.
+        list[dict]: Exported items with namespace, key, value, and timestamp fields.
     """
     items = []
     seen: set[tuple] = set()
@@ -90,13 +95,19 @@ async def _dump(store, postgres: bool) -> list[dict]:
                 if key in seen:
                     continue
                 seen.add(key)
-                items.append({
-                    "namespace": list(item.namespace),
-                    "key": item.key,
-                    "value": item.value,
-                    "created_at": item.created_at.isoformat() if item.created_at else None,
-                    "updated_at": item.updated_at.isoformat() if item.updated_at else None,
-                })
+                items.append(
+                    {
+                        "namespace": list(item.namespace),
+                        "key": item.key,
+                        "value": item.value,
+                        "created_at": item.created_at.isoformat()
+                        if item.created_at
+                        else None,
+                        "updated_at": item.updated_at.isoformat()
+                        if item.updated_at
+                        else None,
+                    }
+                )
             if not paginated or len(results) < limit:
                 break
             offset += limit
@@ -106,27 +117,46 @@ async def _dump(store, postgres: bool) -> list[dict]:
 async def _seed_demo(store) -> None:
     """
     Populate the store with sample user and project entries for export demonstrations.
-    
+
     Parameters:
-    	store: Storage backend that accepts asynchronous item insertion.
+        store: Storage backend that accepts asynchronous item insertion.
     """
-    await store.aput(("user", "alice", "memories"), "pref-editor", {"content": "Alice uses VSCode with dark mode as her primary editor."})
-    await store.aput(("user", "alice", "memories"), "pref-lang", {"content": "Alice prefers Python and FastAPI over JavaScript."})
-    await store.aput(("user", "alice", "facts"), "location", {"content": "Alice is based in Berlin, Germany."})
-    await store.aput(("project", "example-project"), "goal-1", {"content": "Build an open-source agentic memory layer.", "priority": "high"})
+    await store.aput(
+        ("user", "alice", "memories"),
+        "pref-editor",
+        {"content": "Alice uses VSCode with dark mode as her primary editor."},
+    )
+    await store.aput(
+        ("user", "alice", "memories"),
+        "pref-lang",
+        {"content": "Alice prefers Python and FastAPI over JavaScript."},
+    )
+    await store.aput(
+        ("user", "alice", "facts"),
+        "location",
+        {"content": "Alice is based in Berlin, Germany."},
+    )
+    await store.aput(
+        ("project", "example-project"),
+        "goal-1",
+        {"content": "Build an open-source agentic memory layer.", "priority": "high"},
+    )
 
 
 async def main(output: str) -> None:
     """
     Export store contents to a JSON file.
-    
+
     Parameters:
         output (str): Path to the output JSON file.
     """
     store, postgres = _get_store()
 
     if not postgres:
-        print("No LANGGRAPH_POSTGRES_URI set — using InMemoryStore with demo data.", file=sys.stderr)
+        print(
+            "No LANGGRAPH_POSTGRES_URI set — using InMemoryStore with demo data.",
+            file=sys.stderr,
+        )
         await _seed_demo(store)
         items = await _dump(store, postgres)
     else:
@@ -151,6 +181,8 @@ async def main(output: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Dump LangGraph store to JSON")
-    parser.add_argument("--output", default="langgraph_dump.json", help="Output file path")
+    parser.add_argument(
+        "--output", default="langgraph_dump.json", help="Output file path"
+    )
     args = parser.parse_args()
     asyncio.run(main(args.output))

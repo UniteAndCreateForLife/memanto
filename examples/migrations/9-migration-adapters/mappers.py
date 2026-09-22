@@ -11,10 +11,8 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from datetime import datetime, timezone
 from typing import Any
 
-from memanto.app.constants import VALID_MEMORY_TYPES
 from memanto.cli.migrate.mappers import (
     _attach_footer,
     _coerce_type,
@@ -26,7 +24,6 @@ from memanto.cli.migrate.mappers import (
     map_mem0,
     map_okf,
     map_supermemory,
-    type_breakdown,
 )
 
 _DEFAULT_TITLE_CHARS = 80
@@ -37,6 +34,7 @@ _MAX_FOOTER_CHARS = 800
 # ---------------------------------------------------------------------------
 # Claude
 # ---------------------------------------------------------------------------
+
 
 def map_claude(export: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -56,29 +54,36 @@ def map_claude(export: dict[str, Any]) -> list[dict[str, Any]]:
                 if not content:
                     parts = msg.get("content") or []
                     content = " ".join(
-                        p["text"] for p in parts
-                        if isinstance(p, dict) and p.get("type") == "text" and p.get("text", "").strip()
+                        p["text"]
+                        for p in parts
+                        if isinstance(p, dict)
+                        and p.get("type") == "text"
+                        and p.get("text", "").strip()
                     ).strip()
                 if not content:
                     continue
 
-                footer = _format_supporting_data([
-                    ("Conversation", conv_title),
-                    ("Conversation id", conv.get("uuid")),
-                    ("Message id", msg.get("uuid")),
-                ])
-                rows.append({
-                    "title": conv_title or _title_from(content),
-                    "content": _attach_footer(content, footer),
-                    "type": None,
-                    "tags": [],
-                    "confidence": 0.8,
-                    "source": "claude",
-                    "source_ref": str(msg.get("uuid")) if msg.get("uuid") else None,
-                    "provenance": "imported",
-                    "created_at": _parse_dt(msg.get("created_at")),
-                    "updated_at": migrated_at,
-                })
+                footer = _format_supporting_data(
+                    [
+                        ("Conversation", conv_title),
+                        ("Conversation id", conv.get("uuid")),
+                        ("Message id", msg.get("uuid")),
+                    ]
+                )
+                rows.append(
+                    {
+                        "title": conv_title or _title_from(content),
+                        "content": _attach_footer(content, footer),
+                        "type": None,
+                        "tags": [],
+                        "confidence": 0.8,
+                        "source": "claude",
+                        "source_ref": str(msg.get("uuid")) if msg.get("uuid") else None,
+                        "provenance": "imported",
+                        "created_at": _parse_dt(msg.get("created_at")),
+                        "updated_at": migrated_at,
+                    }
+                )
             except (AttributeError, TypeError):
                 continue
 
@@ -88,6 +93,7 @@ def map_claude(export: dict[str, Any]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Gemini
 # ---------------------------------------------------------------------------
+
 
 def map_gemini(export: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -112,18 +118,20 @@ def map_gemini(export: dict[str, Any]) -> list[dict[str, Any]]:
 
             conv_id = conv.get("id")
             footer = _format_supporting_data([("Conversation id", conv_id)])
-            rows.append({
-                "title": _title_from(content),
-                "content": _attach_footer(content, footer),
-                "type": None,
-                "tags": [],
-                "confidence": 0.8,
-                "source": "gemini",
-                "source_ref": f"{conv_id}:{msg_idx}" if conv_id else None,
-                "provenance": "imported",
-                "created_at": created_at,
-                "updated_at": migrated_at,
-            })
+            rows.append(
+                {
+                    "title": _title_from(content),
+                    "content": _attach_footer(content, footer),
+                    "type": None,
+                    "tags": [],
+                    "confidence": 0.8,
+                    "source": "gemini",
+                    "source_ref": f"{conv_id}:{msg_idx}" if conv_id else None,
+                    "provenance": "imported",
+                    "created_at": created_at,
+                    "updated_at": migrated_at,
+                }
+            )
 
     return rows
 
@@ -131,6 +139,7 @@ def map_gemini(export: dict[str, Any]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # ChatGPT
 # ---------------------------------------------------------------------------
+
 
 def map_chatgpt(export: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -161,10 +170,13 @@ def map_chatgpt(export: dict[str, Any]) -> list[dict[str, Any]]:
                 content_obj = msg.get("content") or {}
                 if (
                     author.get("role") == "user"
-                    and content_obj.get("content_type", "text") != "user_editable_context"
+                    and content_obj.get("content_type", "text")
+                    != "user_editable_context"
                 ):
                     parts = content_obj.get("parts") or []
-                    content = " ".join(p for p in parts if isinstance(p, str) and p.strip())
+                    content = " ".join(
+                        p for p in parts if isinstance(p, str) and p.strip()
+                    )
                     if content:
                         user_nodes.append(node)
             node_id = node.get("parent")
@@ -176,24 +188,30 @@ def map_chatgpt(export: dict[str, Any]) -> list[dict[str, Any]]:
             msg = node["message"]
             parts = (msg.get("content") or {}).get("parts") or []
             content = " ".join(p for p in parts if isinstance(p, str) and p.strip())
-            created_at = _parse_dt(msg.get("create_time")) or _parse_dt(conv.get("create_time"))
-            footer = _format_supporting_data([
-                ("Conversation", conv_title),
-                ("Conversation id", conv.get("id")),
-                ("Node id", node.get("id")),
-            ])
-            rows.append({
-                "title": conv_title or _title_from(content),
-                "content": _attach_footer(content, footer),
-                "type": None,
-                "tags": [],
-                "confidence": 0.8,
-                "source": "chatgpt",
-                "source_ref": str(node.get("id")) if node.get("id") else None,
-                "provenance": "imported",
-                "created_at": created_at,
-                "updated_at": migrated_at,
-            })
+            created_at = _parse_dt(msg.get("create_time")) or _parse_dt(
+                conv.get("create_time")
+            )
+            footer = _format_supporting_data(
+                [
+                    ("Conversation", conv_title),
+                    ("Conversation id", conv.get("id")),
+                    ("Node id", node.get("id")),
+                ]
+            )
+            rows.append(
+                {
+                    "title": conv_title or _title_from(content),
+                    "content": _attach_footer(content, footer),
+                    "type": None,
+                    "tags": [],
+                    "confidence": 0.8,
+                    "source": "chatgpt",
+                    "source_ref": str(node.get("id")) if node.get("id") else None,
+                    "provenance": "imported",
+                    "created_at": created_at,
+                    "updated_at": migrated_at,
+                }
+            )
 
     return rows
 
@@ -201,6 +219,7 @@ def map_chatgpt(export: dict[str, Any]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Zep
 # ---------------------------------------------------------------------------
+
 
 def map_zep(export: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -213,26 +232,34 @@ def map_zep(export: dict[str, Any]) -> list[dict[str, Any]]:
                 continue
             rating = edge.get("score") if "score" in edge else edge.get("relevance")
             try:
-                confidence = min(1.0, max(0.0, float(rating))) if rating is not None else 0.8
+                confidence = (
+                    min(1.0, max(0.0, float(rating))) if rating is not None else 0.8
+                )
             except (TypeError, ValueError):
                 confidence = 0.8
-            footer = _format_supporting_data([
-                ("Edge name", edge.get("name")),
-                ("Rating", str(rating) if rating is not None else None),
-                ("UUID", edge.get("uuid")),
-            ])
-            rows.append({
-                "title": _title_from(content),
-                "content": _attach_footer(content, footer),
-                "type": "fact",
-                "tags": [],
-                "confidence": confidence,
-                "source": "zep",
-                "source_ref": edge.get("uuid"),
-                "provenance": "imported",
-                "created_at": _parse_dt(edge.get("valid_at") or edge.get("created_at")),
-                "updated_at": migrated_at,
-            })
+            footer = _format_supporting_data(
+                [
+                    ("Edge name", edge.get("name")),
+                    ("Rating", str(rating) if rating is not None else None),
+                    ("UUID", edge.get("uuid")),
+                ]
+            )
+            rows.append(
+                {
+                    "title": _title_from(content),
+                    "content": _attach_footer(content, footer),
+                    "type": "fact",
+                    "tags": [],
+                    "confidence": confidence,
+                    "source": "zep",
+                    "source_ref": edge.get("uuid"),
+                    "provenance": "imported",
+                    "created_at": _parse_dt(
+                        edge.get("valid_at") or edge.get("created_at")
+                    ),
+                    "updated_at": migrated_at,
+                }
+            )
         except (AttributeError, TypeError):
             continue
 
@@ -266,25 +293,31 @@ def map_hindsight(export: dict[str, Any]) -> list[dict[str, Any]]:
             if not content:
                 continue
             metadata = item.get("metadata") or {}
-            footer = _format_supporting_data([
-                ("Bank", item.get("bank_id")),
-                ("Fact type", item.get("fact_type")),
-                ("Context", item.get("context") or None),
-                ("Entities", item.get("entities") or None),
-                *((k, str(v)) for k, v in metadata.items() if v),
-            ])
-            rows.append({
-                "title": _title_from(content),
-                "content": _attach_footer(content, footer),
-                "type": _hindsight_type(item.get("fact_type")),
-                "tags": list(item.get("tags") or []),
-                "confidence": 0.8,
-                "source": "hindsight",
-                "source_ref": item.get("id"),
-                "provenance": "imported",
-                "created_at": _parse_dt(item.get("date") or item.get("mentioned_at")),
-                "updated_at": migrated_at,
-            })
+            footer = _format_supporting_data(
+                [
+                    ("Bank", item.get("bank_id")),
+                    ("Fact type", item.get("fact_type")),
+                    ("Context", item.get("context") or None),
+                    ("Entities", item.get("entities") or None),
+                    *((k, str(v)) for k, v in metadata.items() if v),
+                ]
+            )
+            rows.append(
+                {
+                    "title": _title_from(content),
+                    "content": _attach_footer(content, footer),
+                    "type": _hindsight_type(item.get("fact_type")),
+                    "tags": list(item.get("tags") or []),
+                    "confidence": 0.8,
+                    "source": "hindsight",
+                    "source_ref": item.get("id"),
+                    "provenance": "imported",
+                    "created_at": _parse_dt(
+                        item.get("date") or item.get("mentioned_at")
+                    ),
+                    "updated_at": migrated_at,
+                }
+            )
         except (AttributeError, TypeError):
             continue
 
@@ -294,6 +327,7 @@ def map_hindsight(export: dict[str, Any]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # LangGraph
 # ---------------------------------------------------------------------------
+
 
 def map_langgraph(export: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -329,18 +363,20 @@ def map_langgraph(export: dict[str, Any]) -> list[dict[str, Any]]:
                         footer_pairs.append((k.capitalize(), str(v)))
             footer = _format_supporting_data(footer_pairs)
 
-            rows.append({
-                "title": _title_from(content),
-                "content": _attach_footer(content, footer),
-                "type": None,
-                "tags": [ns_tag] if ns_tag else [],
-                "confidence": 0.8,
-                "source": "langgraph",
-                "source_ref": key,
-                "provenance": "imported",
-                "created_at": _parse_dt(item.get("created_at")),
-                "updated_at": migrated_at,
-            })
+            rows.append(
+                {
+                    "title": _title_from(content),
+                    "content": _attach_footer(content, footer),
+                    "type": None,
+                    "tags": [ns_tag] if ns_tag else [],
+                    "confidence": 0.8,
+                    "source": "langgraph",
+                    "source_ref": key,
+                    "provenance": "imported",
+                    "created_at": _parse_dt(item.get("created_at")),
+                    "updated_at": migrated_at,
+                }
+            )
         except (AttributeError, TypeError):
             continue
 
@@ -350,6 +386,7 @@ def map_langgraph(export: dict[str, Any]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Notion / Obsidian
 # ---------------------------------------------------------------------------
+
 
 def _map_markdown_entry(
     entry: dict[str, Any],
@@ -391,7 +428,9 @@ def map_notion(export: dict[str, Any]) -> list[dict[str, Any]]:
     migrated_at = _now_utc()
     for entry in export.get("memories", []) or []:
         try:
-            row = _map_markdown_entry(entry, source="notion", memory_type="artifact", migrated_at=migrated_at)
+            row = _map_markdown_entry(
+                entry, source="notion", memory_type="artifact", migrated_at=migrated_at
+            )
             if row:
                 rows.append(row)
         except (AttributeError, TypeError):
@@ -404,7 +443,12 @@ def map_obsidian(export: dict[str, Any]) -> list[dict[str, Any]]:
     migrated_at = _now_utc()
     for entry in export.get("memories", []) or []:
         try:
-            row = _map_markdown_entry(entry, source="obsidian", memory_type="artifact", migrated_at=migrated_at)
+            row = _map_markdown_entry(
+                entry,
+                source="obsidian",
+                memory_type="artifact",
+                migrated_at=migrated_at,
+            )
             if row:
                 rows.append(row)
         except (AttributeError, TypeError):
@@ -415,6 +459,7 @@ def map_obsidian(export: dict[str, Any]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Chroma
 # ---------------------------------------------------------------------------
+
 
 def map_chroma(export: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
@@ -434,18 +479,20 @@ def map_chroma(export: dict[str, Any]) -> list[dict[str, Any]]:
                 if k != "source" and v is not None:
                     footer_pairs.append((k, str(v)))
             footer = _format_supporting_data(footer_pairs)
-            rows.append({
-                "title": _title_from(content),
-                "content": _attach_footer(content, footer),
-                "type": None,
-                "tags": [],
-                "confidence": 0.8,
-                "source": "chroma",
-                "source_ref": item.get("id"),
-                "provenance": "imported",
-                "created_at": None,
-                "updated_at": migrated_at,
-            })
+            rows.append(
+                {
+                    "title": _title_from(content),
+                    "content": _attach_footer(content, footer),
+                    "type": None,
+                    "tags": [],
+                    "confidence": 0.8,
+                    "source": "chroma",
+                    "source_ref": item.get("id"),
+                    "provenance": "imported",
+                    "created_at": None,
+                    "updated_at": migrated_at,
+                }
+            )
         except (AttributeError, TypeError):
             continue
 
