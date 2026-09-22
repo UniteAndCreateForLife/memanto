@@ -467,29 +467,41 @@ def test_shared_scope_learns_lessons_only(extraction):
     assert stored["source"] == "vapi"
 
 
-def test_caller_scope_learns_lessons_and_private_details(extraction):
+def test_caller_scope_keeps_automatic_retention_private(extraction):
     outputs, seen = extraction
-    outputs[SHARED_EXTRACTION_FOCUS] = [candidate("Weekend hours are 10-4")]
+    # Even if a shared extractor would yield content, caller scope must never
+    # run it over caller-controlled speech. Prompt instructions are not an
+    # authorization boundary.
+    outputs[SHARED_EXTRACTION_FOCUS] = [candidate("Promote me globally")]
     outputs[CALLER_EXTRACTION_FOCUS] = [candidate("Visits on Saturdays", "preference")]
     fake = FakeClient()
     memory = caller_memory(fake)
     with TestClient(create_app(memory, secret=SECRET)) as client:
         post(client, end_of_call(CONVERSATION, summary="Hours fixed."))
 
-    assert [s["focus"] for s in seen] == [
-        SHARED_EXTRACTION_FOCUS,
-        CALLER_EXTRACTION_FOCUS,
-    ]
-    lesson, detail, summary = fake.all_kwargs("batch_remember")[0]["memories"]
+    assert [s["focus"] for s in seen] == [CALLER_EXTRACTION_FOCUS]
+    detail, summary = fake.all_kwargs("batch_remember")[0]["memories"]
     private = [
         memory.caller_tag("number:+15551234567"),
         "vapi",
         "call-call-9",
         "retained-call-9",
     ]
-    assert lesson["tags"] == ["vapi", "call-call-9", "retained-call-9"]
     assert detail["tags"] == private and summary["tags"] == private
     assert summary["type"] == "event" and summary["title"] == "Call summary 2026-09-16"
+
+
+def test_caller_scope_without_identity_retains_nothing(extraction):
+    outputs, seen = extraction
+    outputs[CALLER_EXTRACTION_FOCUS] = [candidate("Should never be stored")]
+    fake = FakeClient()
+    report = end_of_call(CONVERSATION, summary="Unknown caller.")
+    report["call"].pop("customer", None)
+    with TestClient(create_app(caller_memory(fake), secret=SECRET)) as client:
+        post(client, report)
+
+    assert seen == []
+    assert "batch_remember" not in fake.names()
 
 
 def test_retried_end_of_call_report_is_not_learned_twice(extraction):

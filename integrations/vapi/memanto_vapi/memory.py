@@ -378,27 +378,35 @@ class VapiMemory:
                 {"role": "system", "content": "\n".join(n for n in notes if n)}
             )
 
-        items = self._extract(conversation, SHARED_EXTRACTION_FOCUS, None, call_id)
-
         tag = self._caller_tag_for(message)
-        if self.scope == "caller" and tag is None:
-            logger.info(
-                "Call %s has no caller identity; caller memory skipped", call_id
-            )
-        if tag:
-            items += self._extract(conversation, CALLER_EXTRACTION_FOCUS, tag, call_id)
-            if summary:
-                items.append(
-                    {
-                        "type": "event",
-                        "title": f"Call summary {str(message.get('endedAt') or '')[:10]}".strip(),
-                        "content": summary,
-                        "confidence": 0.8,
-                        "tags": _retention_tags(tag, call_id),
-                        "source": SOURCE,
-                        "provenance": "inferred",
-                    }
+        if self.scope == "caller":
+            # Caller speech is untrusted input. Never promote memories inferred
+            # from one caller's transcript into the shared namespace: prompt
+            # instructions are not an authorization boundary. Fail closed when
+            # the caller cannot be identified, otherwise keep every automatic
+            # end-of-call memory private to that caller.
+            if tag is None:
+                logger.info(
+                    "Call %s has no caller identity; automatic retention skipped",
+                    call_id,
                 )
+                return
+            items = self._extract(conversation, CALLER_EXTRACTION_FOCUS, tag, call_id)
+        else:
+            items = self._extract(conversation, SHARED_EXTRACTION_FOCUS, None, call_id)
+
+        if tag and summary:
+            items.append(
+                {
+                    "type": "event",
+                    "title": f"Call summary {str(message.get('endedAt') or '')[:10]}".strip(),
+                    "content": summary,
+                    "confidence": 0.8,
+                    "tags": _retention_tags(tag, call_id),
+                    "source": SOURCE,
+                    "provenance": "inferred",
+                }
+            )
 
         if not items:
             logger.info("Call %s produced no memories", call_id)
