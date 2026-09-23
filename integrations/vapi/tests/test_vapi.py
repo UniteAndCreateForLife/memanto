@@ -427,6 +427,7 @@ CONVERSATION = [
 
 
 def end_of_call(messages: list[dict[str, Any]], **analysis: str) -> dict[str, Any]:
+    """Build a representative Vapi end-of-call webhook payload for retention tests."""
     return {
         "type": "end-of-call-report",
         "endedReason": "customer-ended-call",
@@ -510,6 +511,7 @@ def test_caller_scope_without_identity_retains_nothing(extraction):
 
 
 def test_retried_end_of_call_report_is_not_learned_twice(extraction):
+    """A retried end-of-call report must not duplicate retained memories."""
     outputs, seen = extraction
     outputs[SHARED_EXTRACTION_FOCUS] = [candidate("Weekend hours are 10-4")]
     fake = FakeClient()
@@ -600,6 +602,7 @@ def test_focused_extractor_uses_focus_prompt():
 
 
 def test_tool_definitions_match_scope():
+    """Tool schemas expose the correct remember behavior for each memory scope."""
     shared = tool_definitions("https://h/vapi/webhook", credential_id="cred-1")
     caller = tool_definitions("https://h/vapi/webhook", scope="caller")
     assert [t["function"]["name"] for t in shared] == [RECALL_TOOL, REMEMBER_TOOL]
