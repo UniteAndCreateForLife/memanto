@@ -348,6 +348,7 @@ class VapiMemory:
         await asyncio.to_thread(self._retain_call, message)
 
     def _retain_call(self, message: dict[str, Any]) -> None:
+        """Retain extracted details and the call summary in the configured scope."""
         call_id = (message.get("call") or {}).get("id")
         if call_id and self._already_retained(call_id):
             logger.info("Call %s was already retained; skipping retry", call_id)
@@ -395,7 +396,7 @@ class VapiMemory:
         else:
             items = self._extract(conversation, SHARED_EXTRACTION_FOCUS, None, call_id)
 
-        if tag and summary:
+        if summary:
             items.append(
                 {
                     "type": "event",
