@@ -18,7 +18,8 @@ import hmac
 import json
 import logging
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import Any, Literal, TypeVar
 
 from memanto.app.constants import VALID_MEMORY_TYPES
@@ -147,6 +148,8 @@ class VapiMemory:
         self._extract_max_memories = extract_max_memories
         self._ready = False
         self._ready_lock = threading.Lock()
+        self._retention_locks_guard = threading.Lock()
+        self._retention_locks: dict[str, tuple[threading.Lock, int]] = {}
 
     # ------------------------------------------------------------------ #
     # Identity
@@ -350,6 +353,32 @@ class VapiMemory:
     def _retain_call(self, message: dict[str, Any]) -> None:
         """Retain extracted details and the call summary in the configured scope."""
         call_id = (message.get("call") or {}).get("id")
+        with self._retention_lock(call_id):
+            self._retain_call_once(message, call_id)
+
+    @contextmanager
+    def _retention_lock(self, call_id: str | None) -> Iterator[None]:
+        """Serialize overlapping deliveries for one call without leaking locks."""
+        if not call_id:
+            yield
+            return
+
+        with self._retention_locks_guard:
+            lock, users = self._retention_locks.get(call_id, (threading.Lock(), 0))
+            self._retention_locks[call_id] = (lock, users + 1)
+        try:
+            with lock:
+                yield
+        finally:
+            with self._retention_locks_guard:
+                current_lock, users = self._retention_locks[call_id]
+                if users == 1:
+                    del self._retention_locks[call_id]
+                else:
+                    self._retention_locks[call_id] = (current_lock, users - 1)
+
+    def _retain_call_once(self, message: dict[str, Any], call_id: str | None) -> None:
+        """Retain one report while its call-specific critical section is held."""
         if call_id and self._already_retained(call_id):
             logger.info("Call %s was already retained; skipping retry", call_id)
             return
