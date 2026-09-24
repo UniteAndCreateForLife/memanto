@@ -107,3 +107,8 @@ GitHub on [https://memanto.ai/contributor-onboard](https://memanto.ai/contributo
 - @akashlamani835-web
 - @woahwhattheheck
 - @dlowzzxx
+- @UniteAndCreateForLife
+- @Priyaanshuuu
+- @ayduanzf-hub
+- @hoaimyn05
+- @HARSHAVARDHAN-RAJU5
