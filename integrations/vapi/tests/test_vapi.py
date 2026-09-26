@@ -440,8 +440,8 @@ def end_of_call(messages: list[dict[str, Any]], **analysis: str) -> dict[str, An
     }
 
 
-def test_shared_scope_learns_lessons_and_retains_summary(extraction):
-    """Shared scope retains both extracted lessons and the analysis summary."""
+def test_shared_scope_learns_lessons_only(extraction):
+    """Shared scope keeps extracted lessons, never Vapi's raw call summary."""
     outputs, seen = extraction
     outputs[SHARED_EXTRACTION_FOCUS] = [candidate("Weekend hours are 10-4")]
     fake = FakeClient()
@@ -465,9 +465,7 @@ def test_shared_scope_learns_lessons_and_retains_summary(extraction):
             "Vapi success evaluation: false",
         },
     ]
-    stored, summary = fake.all_kwargs("batch_remember")[0]["memories"]
-    assert summary["type"] == "event" and summary["content"] == "Hours fixed."
-    assert summary["tags"] == ["vapi", "call-call-9", "retained-call-9"]
+    (stored,) = fake.all_kwargs("batch_remember")[0]["memories"]
     assert stored["content"] == "Weekend hours are 10-4"
     assert stored["tags"] == ["vapi", "call-call-9", "retained-call-9"]
     assert stored["source"] == "vapi"
@@ -579,12 +577,12 @@ def test_retention_lock_is_released_after_an_unexpected_failure(extraction):
     assert memory._retention_locks == {}
 
 
-@pytest.mark.parametrize("summary", ["", "   "])
+@pytest.mark.parametrize("summary", ["", "   ", "Short call."])
 @pytest.mark.parametrize("empty_extraction", [[], ValueError("no usable candidates")])
 def test_nothing_extracted_stores_nothing_in_shared_scope(
     extraction, summary, empty_extraction
 ):
-    """An empty extraction and blank summary must not create an empty write."""
+    """An empty extraction stores nothing in shared scope, whatever the summary says."""
     outputs, _ = extraction
     outputs[SHARED_EXTRACTION_FOCUS] = empty_extraction
     fake = FakeClient()
@@ -671,42 +669,55 @@ def test_tool_definitions_match_scope():
     assert "shared with all callers" in shared[1]["function"]["description"]
 
 
+CALLER_DETAIL_SUMMARY = "Jane Doe (+1 555 0100) asked to move her dentist appointment."
+
+
 @pytest.mark.parametrize("has_customer", [True, False])
-@pytest.mark.parametrize("empty_extraction", [[], ValueError("no usable candidates")])
-def test_shared_scope_retains_summary_without_extracted_details(
-    extraction, has_customer, empty_extraction
+@pytest.mark.parametrize(
+    "shared_extraction",
+    [[candidate("Weekend hours are 10-4")], [], ValueError("no usable candidates")],
+)
+def test_shared_scope_never_stores_a_summary_with_caller_details(
+    extraction, has_customer, shared_extraction
 ):
-    """Shared summaries survive empty extraction without requiring caller identity."""
+    """Raw Vapi summaries can name the caller, so shared scope never stores them."""
     outputs, seen = extraction
-    outputs[SHARED_EXTRACTION_FOCUS] = empty_extraction
+    outputs[SHARED_EXTRACTION_FOCUS] = shared_extraction
     fake = FakeClient()
-    report = end_of_call(CONVERSATION, summary="  Opening hours confirmed.  ")
+    report = end_of_call(CONVERSATION, summary=CALLER_DETAIL_SUMMARY)
     if not has_customer:
         report["call"].pop("customer")
     with TestClient(create_app(shared_memory(fake), secret=SECRET)) as client:
         assert post(client, report).status_code == 200
+
     assert [run["focus"] for run in seen] == [SHARED_EXTRACTION_FOCUS]
-    (stored,) = fake.all_kwargs("batch_remember")[0]["memories"]
-    assert stored == {
-        "type": "event",
-        "title": "Call summary 2026-09-16",
-        "content": "Opening hours confirmed.",
-        "confidence": 0.8,
-        "tags": ["vapi", "call-call-9", "retained-call-9"],
-        "source": "vapi",
-        "provenance": "inferred",
-    }
+    stored = [
+        memory
+        for call in fake.all_kwargs("batch_remember")
+        for memory in call["memories"]
+    ]
+    assert not any("Jane Doe" in memory["content"] for memory in stored)
+    assert all(memory["type"] != "event" for memory in stored)
+    if isinstance(shared_extraction, list) and shared_extraction:
+        assert [memory["content"] for memory in stored] == ["Weekend hours are 10-4"]
+    else:
+        assert "batch_remember" not in fake.names()
 
 
-def test_shared_summary_only_retry_is_not_retained_twice(extraction):
-    """A summary-only write carries the same retry marker as extracted details."""
-    _, seen = extraction
+def test_caller_summary_only_retry_is_not_retained_twice(extraction):
+    """A caller-private summary-only write carries the call's retry marker."""
+    outputs, seen = extraction
+    outputs[CALLER_EXTRACTION_FOCUS] = []
     fake = FakeClient()
+    memory = caller_memory(fake)
     report = end_of_call(CONVERSATION, summary="Opening hours confirmed.")
-    with TestClient(create_app(shared_memory(fake), secret=SECRET)) as client:
+    with TestClient(create_app(memory, secret=SECRET)) as client:
         post(client, report)
         fake.memories = fake.all_kwargs("batch_remember")[0]["memories"]
         post(client, report)
     assert len(seen) == 1
-    assert len(fake.all_kwargs("batch_remember")) == 1
+    (summary,) = fake.all_kwargs("batch_remember")[0]["memories"]
+    assert summary["type"] == "event"
+    assert summary["content"] == "Opening hours confirmed."
+    assert summary["tags"][0] == memory.caller_tag("number:+15551234567")
     assert fake.all_kwargs("recall")[-1]["tags"] == ["retained-call-9"]

@@ -351,7 +351,7 @@ class VapiMemory:
         await asyncio.to_thread(self._retain_call, message)
 
     def _retain_call(self, message: dict[str, Any]) -> None:
-        """Retain extracted details and the call summary in the configured scope."""
+        """Retain extracted details; keep Vapi's raw call summary caller-private."""
         call_id = (message.get("call") or {}).get("id")
         with self._retention_lock(call_id):
             self._retain_call_once(message, call_id)
@@ -425,7 +425,11 @@ class VapiMemory:
         else:
             items = self._extract(conversation, SHARED_EXTRACTION_FOCUS, None, call_id)
 
-        if summary:
+        # Vapi's raw summary is written from the caller's transcript and can
+        # name the caller or repeat their details. It never passes the shared
+        # extraction focus, so, as on main, it is kept only as caller-private
+        # memory; shared scope keeps only the filtered lessons above.
+        if tag and summary:
             items.append(
                 {
                     "type": "event",
